@@ -21,6 +21,7 @@ warnings.filterwarnings('ignore', message='.*Tried to instantiate class.*')
 
 from modules.agents.chat_agent import ChatAgent
 from modules.agents.icd_agent import IcdAgent
+from modules.agents.snomed_agent import SnomedAgent
 from modules.agents.concept_set_extractor_agent import ConceptSetExtractorAgent
 from modules.interactive_session import interactive_session
 from modules.config import CONCEPT_SET_CLASSIFICATION_PROMPT, create_openai_client
@@ -62,6 +63,7 @@ class MasterAgent:
             # Initialize Agents
             self.chat_agent = ChatAgent()
             self.icd_agent = IcdAgent()
+            self.snomed_agent = SnomedAgent()
             self.concept_set_extractor_agent = ConceptSetExtractorAgent()
             logger.info("✅ All agents initialized successfully")
 
@@ -110,6 +112,16 @@ class MasterAgent:
         Classifies the query to determine the appropriate agent type.
         """
         query_lower = query.lower()
+        
+        # Check for SNOMED-related keywords (check first as it's more specific)
+        snomed_keywords = [
+            "snomed", "snomed ct", "snomedct", "sct", "snomed code",
+            "clinical term", "clinical terminology", "snomed concept"
+        ]
+        
+        if any(keyword in query_lower for keyword in snomed_keywords):
+            logger.info(f"SNOMED query detected: '{query}' -> routing to 'snomed' agent")
+            return "snomed"
         
         # Check for ICD-related keywords
         icd_keywords = [
@@ -263,6 +275,22 @@ class MasterAgent:
             )
             
             return response
+        elif agent_type == "snomed":
+            # Use interactive processing for SNOMED queries
+            logger.info(f"📋 State: Routing to SNOMED agent with interactive session support")
+            response = self._chat_snomed_interactive(query, session_id)
+            logger.info(f"📋 State: SNOMED response generated ({len(response)} chars), stored in session")
+            self.conversation_history.add_assistant_message(response, agent_type="snomed")
+            
+            # Store SNOMED conversation turn in memory system
+            memory_manager.process_conversation_turn(
+                session_id=session_id,
+                user_query=query,
+                assistant_response=response,
+                metadata={'agent_type': 'snomed', 'has_concepts': True}
+            )
+            
+            return response
         else:
             response = f"❌ Unknown agent type: {agent_type}"
             self.conversation_history.add_assistant_message(response, agent_type="master")
@@ -287,29 +315,46 @@ class MasterAgent:
             Formatted string with ICD codes, descriptions, and ALL available fields
             (including OHDSI, SAB, etc.), or None if no data
         """
+        import re
+        
+        def clean_html_tags(text):
+            """Remove HTML tags from text, replacing br with comma-space."""
+            if not text or not isinstance(text, str):
+                return text
+            text = re.sub(r'<br\s*/?>', ', ', text, flags=re.IGNORECASE)
+            text = re.sub(r'<[^>]+>', '', text)
+            text = re.sub(r',\s*,', ',', text)
+            return text.strip()
+        
         session_context = interactive_session.get_context(session_id)
         if session_context and session_context.current_data:
             context_lines = []
             for item in session_context.current_data.values():
-                # Start with basic code and description
+                # Start with basic code and description (already cleaned when stored)
                 line = f"[{item.key}] {item.value}"
+                
+                # Add metadata fields if this is SNOMED data from agent
+                if "source" in item.metadata:
+                    line += f"\n  metadata: {item.metadata}"
                 
                 # Add ALL additional fields from the full document
                 if "full_document" in item.metadata:
                     doc = item.metadata["full_document"]
                     
-                    # Add OHDSI data if available (contains SNOMED mappings)
+                    # Add OHDSI data if available (clean any br tags in JSON)
                     if "OHDSI" in doc and doc["OHDSI"]:
-                        line += f"\n  OHDSI: {doc['OHDSI']}"
+                        ohdsi_cleaned = clean_html_tags(doc['OHDSI'])
+                        line += f"\n  OHDSI: {ohdsi_cleaned}"
                     
                     # Add SAB (source abbreviation) if available
                     if "SAB" in doc and doc["SAB"]:
                         line += f"\n  SAB: {doc['SAB']}"
                     
-                    # Add any other fields that might be useful
+                    # Add any other fields that might be useful (clean br tags)
                     for field, value in doc.items():
                         if field not in ["CODE", "STR", "id", "OHDSI", "SAB"] and value:
-                            line += f"\n  {field}: {value}"
+                            cleaned_value = clean_html_tags(str(value))
+                            line += f"\n  {field}: {cleaned_value}"
                 
                 context_lines.append(line)
             
@@ -340,6 +385,49 @@ class MasterAgent:
             
         except Exception as e:
             logger.exception("Interactive ICD chat failed")
+            return f"An error occurred: {e}"
+
+    def _chat_snomed_interactive(self, query: str, session_id: str):
+        """
+        Enhanced SNOMED query handling with interactive session support.
+        """
+        try:
+            # Use interactive processing
+            result = self.snomed_agent.process_interactive(query, session_id)
+            
+            if "error" in result:
+                return result["error"]
+
+            # Return the processed response with session context
+            processed_response = result.get("processed_response", "")
+            if processed_response:
+                return processed_response
+            
+            # Fallback to regular processing if no interactive response
+            return self._chat_snomed(query)
+            
+        except Exception as e:
+            logger.exception("Interactive SNOMED chat failed")
+            return f"An error occurred: {e}"
+
+    def _chat_snomed(self, query: str):
+        """
+        Handles a simple, direct SNOMED query using the SnomedAgent.
+        """
+        try:
+            data = self.snomed_agent.process(query)
+            
+            if "error" in data:
+                return data["error"]
+            
+            # Return processed response if available
+            if "processed_response" in data:
+                return data["processed_response"]
+            
+            return "No SNOMED concepts found for your query."
+            
+        except Exception as e:
+            logger.exception("SNOMED query failed")
             return f"An error occurred: {e}"
 
     def _concept_set_workflow(self, state: MasterAgentState) -> str:

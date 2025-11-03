@@ -227,7 +227,12 @@ class InteractiveSession:
         for data_type, items in by_type.items():
             summary_lines.append(f"\n**{data_type.replace('_', ' ').title()}s:**")
             for item in items:
-                summary_lines.append(f"- {item.key}: {item.value}")
+                # Clean up value: replace HTML br tags with newlines for better readability
+                cleaned_value = str(item.value)
+                cleaned_value = cleaned_value.replace("<br>", "\n  ")
+                cleaned_value = cleaned_value.replace("<br/>", "\n  ")
+                cleaned_value = cleaned_value.replace("<br />", "\n  ")
+                summary_lines.append(f"- {item.key}: {cleaned_value}")
         
         summary_lines.append(f"\nTotal items: {len(context.current_data)}")
         
@@ -294,7 +299,23 @@ class InteractiveSession:
         # Add data rows
         for item in context.current_data.values():
             formatted_time = item.added_at.strftime("%H:%M:%S")
-            table_lines.append(f"| {item.item_type} | {item.key} | {item.value} | {formatted_time} |")
+            
+            # Clean up value: replace HTML br tags and newlines with commas for table display
+            cleaned_value = str(item.value)
+            # First replace br tags with a marker
+            cleaned_value = cleaned_value.replace("<br>", "|||")
+            cleaned_value = cleaned_value.replace("<br/>", "|||")
+            cleaned_value = cleaned_value.replace("<br />", "|||")
+            # Remove any newlines and extra whitespace
+            cleaned_value = " ".join(cleaned_value.split())
+            # Replace markers with comma-space
+            cleaned_value = cleaned_value.replace("|||", ", ")
+            
+            # Truncate very long values and add ellipsis
+            if len(cleaned_value) > 150:
+                cleaned_value = cleaned_value[:147] + "..."
+            
+            table_lines.append(f"| {item.item_type} | {item.key} | {cleaned_value} | {formatted_time} |")
         
         return "\n".join(table_lines)
     

@@ -1536,5 +1536,42 @@
     "created_at": "2025-10-24T17:47:11.501307",
     "access_count": 0,
     "last_accessed": null
+  },
+  "fact_20251031_174157_362155": {
+    "fact_type": "context",
+    "content": "User is attempting to search SNOMED data.",
+    "confidence": "high",
+    "entities": [
+      "SNOMED"
+    ],
+    "id": "fact_20251031_174157_362155",
+    "created_at": "2025-10-31T17:41:57.362170",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251031_174157_363072": {
+    "fact_type": "domain_knowledge",
+    "content": "Search operations on SNOMED data may fail due to invalid semantic configuration parameters.",
+    "confidence": "high",
+    "entities": [
+      "SNOMED",
+      "semantic configuration"
+    ],
+    "id": "fact_20251031_174157_363072",
+    "created_at": "2025-10-31T17:41:57.363078",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251101_160221_677776": {
+    "fact_type": "context",
+    "content": "The storage of ICD-10 codes has been cleared and no codes are currently available in the dataset.",
+    "confidence": "high",
+    "entities": [
+      "ICD-10"
+    ],
+    "id": "fact_20251101_160221_677776",
+    "created_at": "2025-11-01T16:02:21.677837",
+    "access_count": 0,
+    "last_accessed": null
   }
 }

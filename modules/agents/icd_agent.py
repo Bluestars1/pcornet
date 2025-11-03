@@ -31,12 +31,13 @@ class IcdAgent:
     referencing the document IDs where information was found.
     """
 
-    def __init__(self, index="pcornet-icd-index"):
+    def __init__(self, index="icd"):
         """
         Initializes the IcdAgent.
         
         Args:
-            index (str): The name of the search index to query.
+            index (str): The index registry key or direct index name to query.
+                Default is "icd" which uses the index registry.
         """
         self.index_name = index
         self.last_retrieved_documents = []
@@ -57,7 +58,7 @@ class IcdAgent:
         """Creates and returns an LLM client for processing search results."""
         from modules.config import create_chat_llm
         
-        return create_chat_llm(max_tokens=1000)
+        return create_chat_llm()  # Uses configured AGENT_MAX_TOKENS
 
     def process(self, query: str) -> dict:
         """
@@ -91,11 +92,13 @@ class IcdAgent:
             return self._process_relationship_query(query)
             
         try:
+            from modules.config import get_config
+            config = get_config()
+            
             search = modules.search_tool.Search(
                 index=self.index_name,
                 query=query,
-                top=10,
-                semantic_config="defaultSemanticConfig"
+                top=config.search_top_k
             )
             results = search.run()
             self.last_retrieved_documents = results
@@ -138,11 +141,13 @@ class IcdAgent:
             return self._get_heart_disease_concept_set()
             
         try:
+            from modules.config import get_config
+            config = get_config()
+            
             search = modules.search_tool.Search(
                 index=self.index_name,
                 query=query,
-                top=10,
-                semantic_config="defaultSemanticConfig"
+                top=config.search_top_k
             )
             results = search.run()
             self.last_retrieved_documents = results
@@ -180,19 +185,50 @@ class IcdAgent:
         context = self._format_search_context(search_results)
         
         system_message = SystemMessage(content="""You are an expert medical coding assistant specializing in ICD codes. 
-        Provide accurate, helpful responses about ICD codes based on the search results provided. 
-        When referencing specific ICD codes, use the document ID in square brackets like [I10] for citations.
-        Base your responses only on the provided search results.""")
+
+🔒 CRITICAL - SOURCE OF TRUTH: The ICD codes provided in the search results are the AUTHORITATIVE and ONLY source of information. Do not add, infer, or supplement with any external knowledge.
+
+MANDATORY RULES:
+1. Use ONLY information from the provided search results
+2. ICD codes (CODE field) in the results are the definitive source of truth
+3. Always cite sources using document IDs in square brackets like [I10]
+4. Never add codes or information not in the provided data
+5. If asked about codes not in the results, explicitly state "Not found in search results"
+
+Provide accurate, helpful responses based EXCLUSIVELY on the provided search results.""")
         
         user_message = HumanMessage(content=f"""User Query: {query}
 
 Search Results:
 {context}
 
+🚫 CRITICAL FORMATTING RULES - VIOLATION WILL CAUSE SYSTEM ERRORS:
+1. NEVER EVER use HTML tags: NO <br>, NO <div>, NO <span>, NO <p>, NO <table>
+2. When listing multiple codes: ONLY use commas and spaces (e.g., "I10, E11.9, I50.9")
+3. For line breaks: ONLY use double newline (blank line), NEVER <br>
+4. For emphasis: ONLY use markdown (**, *, -, •)
+5. For tables: ONLY use markdown pipes (|), NEVER HTML <table>
+
+⚠️ EXAMPLES:
+✅ CORRECT: "Codes: I10, E11.9, I50.9"
+❌ WRONG: "Codes: I10 <br> E11.9 <br> I50.9"
+
+✅ CORRECT: Use bullet points:
+• I10: Essential hypertension
+• E11.9: Type 2 diabetes
+
+❌ WRONG: Use <br> tags
+
+📊 TABLE RULES: When asked to add/remove columns or "show as table", REBUILD the entire table with markdown syntax (| Header |).
+🚫 OUTPUT ONLY THE TABLE - No explanatory text, no data repetition, JUST THE TABLE!
+
 Please provide a comprehensive response about the ICD codes relevant to this query. Include citations using document IDs in square brackets (e.g., [I10]) when referencing specific codes.""")
         
         response = self.llm.invoke([system_message, user_message])
-        return response.content
+        
+        # Post-process to remove any HTML tags (safety net)
+        cleaned_response = self._remove_html_tags(response.content)
+        return cleaned_response
 
     def _generate_llm_response_with_history(self, query: str, search_results: list, history) -> str:
         """
@@ -213,9 +249,17 @@ Please provide a comprehensive response about the ICD codes relevant to this que
         context = self._format_search_context(search_results)
         
         system_message = SystemMessage(content="""You are an expert medical coding assistant specializing in ICD codes. 
-        Provide accurate, helpful responses about ICD codes based on the search results and conversation history. 
-        When referencing specific ICD codes, use the document ID in square brackets like [I10] for citations.
-        Base your responses only on the provided search results.""")
+
+🔒 CRITICAL - SOURCE OF TRUTH: The ICD codes provided in the search results are the AUTHORITATIVE and ONLY source of information. Do not add, infer, or supplement with any external knowledge.
+
+MANDATORY RULES:
+1. Use ONLY information from the provided search results and conversation history
+2. ICD codes (CODE field) in the results are the definitive source of truth
+3. Always cite sources using document IDs in square brackets like [I10]
+4. Never add codes or information not in the provided data
+5. If asked about codes not in the results, explicitly state "Not found in search results"
+
+Provide accurate, helpful responses based EXCLUSIVELY on the provided search results and conversation context.""")
         
         # Combine history with current query and context
         messages = [system_message] + history_messages[-10:]  # Last 10 messages for context
@@ -225,12 +269,59 @@ Please provide a comprehensive response about the ICD codes relevant to this que
 Search Results:
 {context}
 
+🚫 CRITICAL FORMATTING RULES - VIOLATION WILL CAUSE SYSTEM ERRORS:
+1. NEVER EVER use HTML tags: NO <br>, NO <div>, NO <span>, NO <p>, NO <table>
+2. When listing multiple codes: ONLY use commas and spaces (e.g., "I10, E11.9, I50.9")
+3. For line breaks: ONLY use double newline (blank line), NEVER <br>
+4. For emphasis: ONLY use markdown (**, *, -, •)
+5. For tables: ONLY use markdown pipes (|), NEVER HTML <table>
+
+⚠️ EXAMPLES:
+✅ CORRECT: "Codes: I10, E11.9, I50.9"
+❌ WRONG: "Codes: I10 <br> E11.9 <br> I50.9"
+
+✅ CORRECT: Use bullet points:
+• I10: Essential hypertension
+• E11.9: Type 2 diabetes
+
+❌ WRONG: Use <br> tags
+
+📊 TABLE RULES: When asked to add/remove columns or "show as table", REBUILD the entire table with markdown syntax (| Header |).
+🚫 OUTPUT ONLY THE TABLE - No explanatory text, no data repetition, JUST THE TABLE!
+
 Please provide a comprehensive response about the ICD codes relevant to this query. Include citations using document IDs in square brackets (e.g., [I10]) when referencing specific codes.""")
         
         messages.append(current_message)
         
         response = self.llm.invoke(messages)
-        return response.content
+        
+        # Post-process to remove any HTML tags (safety net)
+        cleaned_response = self._remove_html_tags(response.content)
+        return cleaned_response
+    
+    def _remove_html_tags(self, text: str) -> str:
+        """
+        Remove HTML tags from text as a safety measure.
+        Replaces br tags with commas, removes other HTML tags.
+        Preserves newlines for proper markdown table formatting.
+        """
+        import re
+        
+        # Replace br tags with comma-space
+        text = re.sub(r'<br\s*/?>', ', ', text, flags=re.IGNORECASE)
+        
+        # Remove any other HTML tags
+        text = re.sub(r'<[^>]+>', '', text)
+        
+        # Clean up multiple commas
+        text = re.sub(r',\s*,', ',', text)
+        
+        # Clean up spaces but PRESERVE newlines
+        # Replace multiple spaces with single space, but keep newlines
+        text = re.sub(r' +', ' ', text)  # Multiple spaces -> single space
+        text = re.sub(r' *\n *', '\n', text)  # Clean spaces around newlines
+        
+        return text.strip()
 
     def _format_search_context(self, search_results: list) -> str:
         """
@@ -362,10 +453,13 @@ Please provide a comprehensive response about the ICD codes relevant to this que
             dict: Hierarchy data and formatted response.
         """
         try:
+            from modules.config import get_config
+            config = get_config()
+            
             rel_search = modules.relationship_search.RelationshipSearch(
                 index=self.index_name,
                 query=code,
-                top=20
+                top=config.search_top_k * 2  # Use 2x for hierarchy queries
             )
             
             hierarchy_data = rel_search.search_parent_child_hierarchy(code)
@@ -400,10 +494,13 @@ Please provide a comprehensive response about the ICD codes relevant to this que
             dict: SNOMED mapping data and formatted response.
         """
         try:
+            from modules.config import get_config
+            config = get_config()
+            
             rel_search = modules.relationship_search.RelationshipSearch(
                 index=self.index_name,
                 query=code,
-                top=10
+                top=config.search_top_k
             )
             
             snomed_mappings = rel_search.search_snomed_mappings(code)
@@ -437,10 +534,13 @@ Please provide a comprehensive response about the ICD codes relevant to this que
             dict: Relationship data and formatted response.
         """
         try:
+            from modules.config import get_config
+            config = get_config()
+            
             rel_search = modules.relationship_search.RelationshipSearch(
                 index=self.index_name,
                 query=query,
-                top=15
+                top=int(config.search_top_k * 1.5)  # Use 1.5x for relationship queries
             )
             
             relationship_results = rel_search.search_relationships()
@@ -729,6 +829,11 @@ This concept set covers the primary ICD-10 codes for heart disease conditions as
                 if current_session:
                     for result in results_list:
                         doc = result.get('document', {})
+                        
+                        # Clean OHDSI field to remove br tags before storing
+                        if 'OHDSI' in doc and doc['OHDSI']:
+                            doc['OHDSI'] = self._clean_html_tags(doc['OHDSI'])
+                        
                         # Store full document so OHDSI field is available
                         data_item = DataItem(
                             item_type='icd_code',
@@ -767,45 +872,81 @@ This concept set covers the primary ICD-10 codes for heart disease conditions as
         if "snomed_code" in data_types:
             current_icds = interactive_session.get_data_by_type(session_id, "icd_code")
             if current_icds:
-                response_lines = ["**Adding SNOMED mappings for current ICD codes:**\n"]
+                response_lines = ["**Adding SNOMED data from SNOMED Agent (Source of Truth):**\n"]
+                
+                # Import SNOMED agent
+                from modules.agents.snomed_agent import SnomedAgent
+                snomed_agent = SnomedAgent()
                 
                 for icd_item in current_icds:
                     icd_code = icd_item.key
-                    
-                    # Use relationship search to get SNOMED mappings
-                    rel_search = modules.relationship_search.RelationshipSearch(
-                        index=self.index_name,
-                        query=icd_code
-                    )
+                    icd_desc = icd_item.value
                     
                     try:
+                        # First get SNOMED codes from OHDSI mappings (for reference)
+                        rel_search = modules.relationship_search.RelationshipSearch(
+                            index=self.index_name,
+                            query=icd_code
+                        )
                         snomed_mappings = rel_search.search_snomed_mappings(icd_code)
                         
                         if snomed_mappings:
-                            response_lines.append(f"**{icd_code} - {icd_item.value}:**")
+                            response_lines.append(f"**{icd_code} - {icd_desc}:**")
                             
+                            # For each SNOMED code found in mapping, get authoritative data from SNOMED agent
                             for mapping in snomed_mappings[:3]:  # Limit to first 3
                                 snomed_code = mapping.get("snomed_code", "")
-                                snomed_name = mapping.get("snomed_name", "")
-                                relationship = mapping.get("relationship_id", "")
                                 
-                                if snomed_code and snomed_name:
-                                    # Add SNOMED code to session
-                                    snomed_item = DataItem(
-                                        item_type="snomed_code",
-                                        key=snomed_code,
-                                        value=snomed_name,
-                                        metadata={
-                                            "relationship": relationship,
-                                            "linked_icd": icd_code
-                                        },
-                                        source_query=query
-                                    )
-                                    interactive_session.add_data_item(session_id, snomed_item)
+                                if snomed_code:
+                                    # Call SNOMED agent to get SOURCE OF TRUTH data
+                                    snomed_result = snomed_agent.get_concept_details(snomed_code)
                                     
-                                    response_lines.append(f"  • SNOMED {snomed_code}: {snomed_name}")
-                                    if relationship:
-                                        response_lines.append(f"    _{relationship}_")
+                                    if "error" not in snomed_result:
+                                        # Use SNOMED agent data as source of truth
+                                        snomed_name = snomed_result.get("concept_name", mapping.get("snomed_name", ""))
+                                        snomed_source = snomed_result.get("source", "SNOMED CT")
+                                        
+                                        # Clean HTML tags from SNOMED name
+                                        snomed_name = self._clean_html_tags(snomed_name)
+                                        
+                                        # Store SNOMED agent data in session
+                                        snomed_item = DataItem(
+                                            item_type="snomed_code",
+                                            key=snomed_code,
+                                            value=snomed_name,
+                                            metadata={
+                                                "source": "SNOMED_AGENT",  # Mark as from SNOMED agent
+                                                "linked_icd": icd_code,
+                                                "ohdsi_relationship": mapping.get("relationship_id", ""),
+                                                "snomed_source": snomed_source,
+                                                "full_document": snomed_result.get("full_document", {})
+                                            },
+                                            source_query=query
+                                        )
+                                        interactive_session.add_data_item(session_id, snomed_item)
+                                        
+                                        response_lines.append(f"  ✓ SNOMED {snomed_code}: {snomed_name}")
+                                        response_lines.append(f"    _Source: {snomed_source} (via SNOMED Agent)_")
+                                    else:
+                                        # Fallback to OHDSI mapping if SNOMED agent lookup fails
+                                        snomed_name = mapping.get("snomed_name", "")
+                                        # Clean HTML tags from SNOMED name
+                                        snomed_name = self._clean_html_tags(snomed_name)
+                                        
+                                        snomed_item = DataItem(
+                                            item_type="snomed_code",
+                                            key=snomed_code,
+                                            value=snomed_name,
+                                            metadata={
+                                                "source": "OHDSI_MAPPING",  # Mark as from mapping only
+                                                "linked_icd": icd_code,
+                                                "relationship": mapping.get("relationship_id", "")
+                                            },
+                                            source_query=query
+                                        )
+                                        interactive_session.add_data_item(session_id, snomed_item)
+                                        response_lines.append(f"  • SNOMED {snomed_code}: {snomed_name}")
+                                        response_lines.append(f"    _Note: From OHDSI mapping (SNOMED agent lookup unavailable)_")
                                     
                             response_lines.append("")  # Empty line between codes
                         else:
@@ -813,8 +954,9 @@ This concept set covers the primary ICD-10 codes for heart disease conditions as
                             
                     except Exception as e:
                         logger.error(f"Error finding SNOMED for {icd_code}: {e}")
-                        response_lines.append(f"**{icd_code}:** Error retrieving SNOMED mappings")
+                        response_lines.append(f"**{icd_code}:** Error retrieving SNOMED data")
                 
+                response_lines.append("\n💡 _SNOMED data retrieved from SNOMED Agent (authoritative source)_")
                 return "\n".join(response_lines)
             else:
                 # No existing ICD codes - check if query contains medical condition
@@ -921,6 +1063,30 @@ What specific information would you like me to add?"""
             # Default to summary format
             return interactive_session.get_current_data_summary(session_id)
     
+    def _clean_html_tags(self, text: str) -> str:
+        """
+        Remove HTML tags from text.
+        Replaces br tags with commas, removes other HTML tags.
+        """
+        import re
+        
+        if not text:
+            return text
+        
+        # Replace br tags with comma-space
+        text = re.sub(r'<br\s*/?>', ', ', text, flags=re.IGNORECASE)
+        
+        # Remove any other HTML tags
+        text = re.sub(r'<[^>]+>', '', text)
+        
+        # Clean up multiple commas
+        text = re.sub(r',\s*,', ',', text)
+        
+        # Clean up spaces
+        text = re.sub(r' +', ' ', text)
+        
+        return text.strip()
+    
     def _handle_filter_request(self, query: str, session_id: str, data_types: List[str]) -> str:
         """Handle requests to filter current data."""
         
@@ -998,6 +1164,10 @@ Try any of these commands to modify your current data!
                 description = document.get("STR", "")
                 
                 if code and description:
+                    # Clean OHDSI field to remove br tags before storing
+                    if 'OHDSI' in document and document['OHDSI']:
+                        document['OHDSI'] = self._clean_html_tags(document['OHDSI'])
+                    
                     # Store ALL fields from the document in metadata
                     # This includes OHDSI, SAB, and any other available fields
                     metadata = {

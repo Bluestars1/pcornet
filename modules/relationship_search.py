@@ -11,6 +11,7 @@ import json
 import logging
 from typing import List, Dict, Any, Optional
 from .search_tool import Search, SearchError
+from .config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ class RelationshipSearch(Search):
             top=top,
             embedding=embedding,
             semantic_config=semantic_config,
-            search_fields=search_fields or ["STR", "CODE", "REL"],
+            search_fields=search_fields or ["STR", "CODE"],  # REL is retrievable but not searchable
             vector_field=vector_field
         )
         
@@ -113,11 +114,13 @@ class RelationshipSearch(Search):
             Dict containing 'parents' and 'children' lists with relationship data.
         """
         try:
-            # Search for the specific code
+            # For precise matching, do a focused search with just the code
+            config = get_config()
+            
             specific_search = Search(
                 index=self.index,
                 query=code,
-                top=10,
+                top=config.search_top_k,
                 search_fields=["CODE", "STR"]
             )
             
@@ -176,11 +179,13 @@ class RelationshipSearch(Search):
             List of SNOMED mapping data.
         """
         try:
-            # Search for the ICD code
+            # Search for the ICD code to get its REL data
+            config = get_config()
+            
             code_search = Search(
                 index=self.index,
                 query=icd_code,
-                top=5,
+                top=max(5, config.search_top_k // 2),  # At least 5, or half of configured top_k
                 search_fields=["CODE"]
             )
             
@@ -243,12 +248,12 @@ class RelationshipSearch(Search):
             logger.exception("SNOMED mapping search failed")
             raise SearchError(f"SNOMED mapping search failed: {e}") from e
 
-    def _parse_rel_data(self, rel_data: List[str], target_code: str = None) -> List[Dict[str, Any]]:
+    def _parse_rel_data(self, rel_data: List, target_code: str = None) -> List[Dict[str, Any]]:
         """
         Parse REL segment data from JSON strings into structured format.
         
         Args:
-            rel_data (List[str]): List of JSON strings containing relationship data.
+            rel_data (List[Union[str, dict]]): List of JSON strings or dicts containing relationship data.
             target_code (str, optional): Filter for specific target code.
             
         Returns:
@@ -256,9 +261,16 @@ class RelationshipSearch(Search):
         """
         parsed_relationships = []
         
-        for rel_json_str in rel_data:
+        for rel_item in rel_data:
             try:
-                rel_obj = json.loads(rel_json_str)
+                # Handle both dict (new format) and JSON string (old format)
+                if isinstance(rel_item, dict):
+                    rel_obj = rel_item
+                elif isinstance(rel_item, str):
+                    rel_obj = json.loads(rel_item)
+                else:
+                    logger.debug(f"Unexpected REL data type: {type(rel_item)}")
+                    continue
                 
                 # Filter by relationship type if specified
                 if rel_obj.get("REL") not in self.rel_types:
@@ -279,7 +291,7 @@ class RelationshipSearch(Search):
                 })
                 
             except (json.JSONDecodeError, KeyError) as e:
-                logger.debug(f"Could not parse REL data: {rel_json_str[:100]}... Error: {e}")
+                logger.debug(f"Could not parse REL data: {str(rel_item)[:100]}... Error: {e}")
         
         return parsed_relationships
 
