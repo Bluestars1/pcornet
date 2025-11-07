@@ -412,14 +412,14 @@ def create_openai_client():
         api_key=cfg.azure_openai_api_key,
     )
 
-def invoke_llm_with_retry(llm_callable, max_retries=3, initial_delay=2):
+def invoke_llm_with_retry(llm_callable, max_retries=3, initial_delay=10):
     """
     Wrapper to invoke any LLM with automatic retry on rate limit errors.
     
     Args:
         llm_callable: A callable that invokes the LLM (e.g., lambda: llm.invoke(messages))
         max_retries: Maximum number of retry attempts (default: 3)
-        initial_delay: Initial delay in seconds before first retry (default: 2)
+        initial_delay: Initial delay in seconds before first retry (default: 10 for S0 tier)
     
     Returns:
         The result from the LLM invocation
@@ -442,6 +442,7 @@ def invoke_llm_with_retry(llm_callable, max_retries=3, initial_delay=2):
             
         except RateLimitError as e:
             if attempt < max_retries - 1:
+                # Longer delays for S0 tier: 10s, 20s, 40s
                 wait_time = initial_delay * (2 ** attempt)  # Exponential backoff
                 logger.warning(f"⚠️ Rate limit hit, retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
                 time.sleep(wait_time)
