@@ -1573,5 +1573,123 @@
     "created_at": "2025-11-01T16:02:21.677837",
     "access_count": 0,
     "last_accessed": null
+  },
+  "fact_20251107_142423_811068": {
+    "fact_type": "context",
+    "content": "The assistant previously provided a comprehensive chronic pain concept set including ICD-10 and SNOMED codes.",
+    "confidence": "high",
+    "entities": [
+      "chronic pain",
+      "ICD-10",
+      "SNOMED"
+    ],
+    "id": "fact_20251107_142423_811068",
+    "created_at": "2025-11-07T14:24:23.811107",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_142423_815369": {
+    "fact_type": "context",
+    "content": "The current session is limited to only three ICD-10 codes and their associated data.",
+    "confidence": "high",
+    "entities": [
+      "ICD-10"
+    ],
+    "id": "fact_20251107_142423_815369",
+    "created_at": "2025-11-07T14:24:23.815415",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_142423_819271": {
+    "fact_type": "user_preference",
+    "content": "User expects code lists and tables to be generated strictly from the provided dataset.",
+    "confidence": "high",
+    "entities": [
+      "ICD-10"
+    ],
+    "id": "fact_20251107_142423_819271",
+    "created_at": "2025-11-07T14:24:23.819296",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_142423_822502": {
+    "fact_type": "domain_knowledge",
+    "content": "Concept sets for medical coding can include both ICD-10 and SNOMED codes.",
+    "confidence": "high",
+    "entities": [
+      "ICD-10",
+      "SNOMED",
+      "concept set"
+    ],
+    "id": "fact_20251107_142423_822502",
+    "created_at": "2025-11-07T14:24:23.822521",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_154124_359280": {
+    "fact_type": "user_preference",
+    "content": "User requested removal of ICD code R52 from the session data.",
+    "confidence": "high",
+    "entities": [
+      "R52"
+    ],
+    "id": "fact_20251107_154124_359280",
+    "created_at": "2025-11-07T15:41:24.359313",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_154124_364890": {
+    "fact_type": "context",
+    "content": "The session contains a list of 50 ICD codes related to removal, adjustment, displacement, and contact injuries.",
+    "confidence": "high",
+    "entities": [
+      "ICD codes",
+      "removal",
+      "adjustment",
+      "displacement",
+      "contact injuries"
+    ],
+    "id": "fact_20251107_154124_364890",
+    "created_at": "2025-11-07T15:41:24.364938",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_154124_368639": {
+    "fact_type": "domain_knowledge",
+    "content": "R52 is the ICD-10 code for pain, unspecified.",
+    "confidence": "high",
+    "entities": [
+      "R52",
+      "pain, unspecified"
+    ],
+    "id": "fact_20251107_154124_368639",
+    "created_at": "2025-11-07T15:41:24.368695",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_154124_372610": {
+    "fact_type": "domain_knowledge",
+    "content": "ICD codes are used to classify medical diagnoses and procedures.",
+    "confidence": "high",
+    "entities": [
+      "ICD codes",
+      "medical coding"
+    ],
+    "id": "fact_20251107_154124_372610",
+    "created_at": "2025-11-07T15:41:24.372644",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_154124_375591": {
+    "fact_type": "context",
+    "content": "The assistant did not find R52 in the search results when attempting removal.",
+    "confidence": "high",
+    "entities": [
+      "R52"
+    ],
+    "id": "fact_20251107_154124_375591",
+    "created_at": "2025-11-07T15:41:24.375627",
+    "access_count": 0,
+    "last_accessed": null
   }
 }

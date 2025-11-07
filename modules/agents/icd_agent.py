@@ -44,14 +44,14 @@ class IcdAgent:
         
         # RelationshipSearch is instantiated per query (not initialized here)
         # It will be created dynamically when searching for SNOMED mappings
-        logger.info("✅ IcdAgent initialized (RelationshipSearch will be used per query)")
+        logger.info("[IcdAgent] ✅ Initialized (RelationshipSearch will be used per query)")
         
         # Initialize LLM client
         try:
             self.llm = self._create_llm()
-            logger.info("✅ IcdAgent initialized with LLM")
+            logger.info("[IcdAgent] ✅ Initialized with LLM")
         except Exception as e:
-            logger.error(f"Failed to initialize IcdAgent LLM: {e}")
+            logger.error(f"[IcdAgent] Failed to initialize LLM: {e}")
             raise e
 
     def _create_llm(self):
@@ -846,7 +846,7 @@ This concept set covers the primary ICD-10 codes for heart disease conditions as
             
             # SNOMED mappings are now in OHDSI field - no need for separate search
             # The chat agent can extract SNOMED codes from the stored OHDSI data
-            logger.info(f"📋 Stored {len(results_list)} ICD codes with OHDSI data in session")
+            logger.info(f"[IcdAgent] 📋 Stored {len(results_list)} ICD codes with OHDSI data in session")
             
             # Return simple response - SNOMED data is in session for chat agent to use
             formatted_results = []
@@ -953,7 +953,7 @@ This concept set covers the primary ICD-10 codes for heart disease conditions as
                             response_lines.append(f"**{icd_code}:** No SNOMED mappings found")
                             
                     except Exception as e:
-                        logger.error(f"Error finding SNOMED for {icd_code}: {e}")
+                        logger.error(f"[IcdAgent] Error finding SNOMED for {icd_code}: {e}")
                         response_lines.append(f"**{icd_code}:** Error retrieving SNOMED data")
                 
                 response_lines.append("\n💡 _SNOMED data retrieved from SNOMED Agent (authoritative source)_")
@@ -1014,7 +1014,8 @@ What specific information would you like me to add?"""
         removed_count = 0
         removed_items = []
         
-        current_context = interactive_session.get_current_context()
+        # Get the specific session by ID, not the "current" session
+        current_context = interactive_session.get_context(session_id)
         if not current_context or not current_context.current_data:
             return "No data in current session to remove."
         
@@ -1190,4 +1191,4 @@ Try any of these commands to modify your current data!
                     interactive_session.add_data_item(session_id, data_item)
                     
         except Exception as e:
-            logger.error(f"Error extracting data for session: {e}")
+            logger.error(f"[IcdAgent] Error extracting data for session: {e}")

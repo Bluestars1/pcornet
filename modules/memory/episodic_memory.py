@@ -30,29 +30,38 @@ class EpisodicMemory:
     
     def __init__(self, persist_directory: str = "data/memory/episodic"):
         """
-        Initialize episodic memory with ChromaDB vector store.
+        Initialize episodic memory with LAZY ChromaDB initialization.
         
         Args:
             persist_directory: Directory to persist the vector database
         """
-        try:
-            # Ensure directory exists
-            os.makedirs(persist_directory, exist_ok=True)
-            
-            # Initialize ChromaDB client
-            self.client = chromadb.PersistentClient(path=persist_directory)
-            
-            # Create or get collection
-            self.collection = self.client.get_or_create_collection(
-                name="conversation_episodes",
-                metadata={"description": "Past conversation episodes for semantic search"}
-            )
-            
-            logger.info(f"✅ Episodic memory initialized: {self.collection.count()} episodes stored")
-            
-        except Exception as e:
-            logger.exception(f"Failed to initialize episodic memory: {e}")
-            raise e
+        self.persist_directory = persist_directory
+        self.client = None
+        self.collection = None
+        logger.info(f"EpisodicMemory initialized (lazy-loading from: {persist_directory})")
+    
+    def _ensure_initialized(self):
+        """Lazy initialize ChromaDB on first use."""
+        if self.client is None:
+            try:
+                # Ensure directory exists
+                os.makedirs(self.persist_directory, exist_ok=True)
+                
+                logger.info(f"⏳ Loading ChromaDB (first use)...")
+                # Initialize ChromaDB client
+                self.client = chromadb.PersistentClient(path=self.persist_directory)
+                
+                # Create or get collection
+                self.collection = self.client.get_or_create_collection(
+                    name="conversation_episodes",
+                    metadata={"description": "Past conversation episodes for semantic search"}
+                )
+                
+                logger.info(f"✅ Episodic memory initialized: {self.collection.count()} episodes stored")
+                
+            except Exception as e:
+                logger.exception(f"Failed to initialize episodic memory: {e}")
+                raise e
     
     def add_turn(self, 
                  turn_id: str,
@@ -69,9 +78,11 @@ class EpisodicMemory:
             metadata: Additional context (session_id, timestamp, etc.)
         
         Returns:
-            True if successful
+            bool: True if successful, False otherwise
         """
         try:
+            self._ensure_initialized()
+            
             # Format as Q&A pair for better semantic matching
             text = f"User: {user_query}\nAssistant: {assistant_response}"
             
@@ -102,17 +113,19 @@ class EpisodicMemory:
                        n_results: int = 3,
                        filter_metadata: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """
-        Search for similar past conversations.
+        Find similar past conversations using semantic search.
         
         Args:
-            query: Search query
+            query: Query text to search for
             n_results: Number of results to return
             filter_metadata: Optional metadata filters
-        
+            
         Returns:
-            List of similar episodes with text, metadata, and similarity scores
+            List of similar episodes with metadata
         """
         try:
+            self._ensure_initialized()
+            
             # Generate query embedding
             query_embedding = embedding_service.embed_text(query)
             
@@ -206,15 +219,106 @@ class EpisodicMemory:
             return False
     
     def get_stats(self) -> Dict[str, Any]:
-        """Get statistics about episodic memory."""
+        """
+        Get statistics about episodic memory.
+        
+        Returns:
+            Dictionary with episode count and collection info
+        """
         try:
+            if self.collection is None:
+                return {'total_episodes': 0, 'collection_name': 'not_loaded', 'status': 'lazy_not_initialized'}
             return {
                 'total_episodes': self.collection.count(),
-                'collection_name': self.collection.name
+                'collection_name': self.collection.name,
+                'status': 'loaded'
             }
         except Exception as e:
-            logger.error(f"Failed to get stats: {e}")
-            return {'total_episodes': 0, 'collection_name': 'unknown'}
+            logger.error(f"Failed to get episodic memory stats: {e}")
+            return {'total_episodes': 0, 'collection_name': 'unknown', 'status': 'error'}
+    
+    def prune_old_episodes(self, max_age_days: int = 30, max_episodes: int = 1000) -> Dict[str, int]:
+        """
+        Prune old episodes to prevent unbounded growth.
+        
+        Args:
+            max_age_days: Delete episodes older than this many days
+            max_episodes: Keep at most this many episodes (most recent)
+            
+        Returns:
+            Dict with pruning statistics
+        """
+        try:
+            self._ensure_initialized()
+            
+            from datetime import timedelta
+            
+            stats = {
+                'episodes_before': self.collection.count(),
+                'episodes_deleted': 0,
+                'episodes_after': 0
+            }
+            
+            if stats['episodes_before'] == 0:
+                logger.info("No episodes to prune")
+                return stats
+            
+            # Get all episodes with metadata
+            all_data = self.collection.get(include=['metadatas'])
+            
+            if not all_data or not all_data['ids']:
+                return stats
+            
+            cutoff_time = datetime.now() - timedelta(days=max_age_days)
+            ids_to_delete = []
+            
+            # Find episodes older than cutoff
+            for i, metadata in enumerate(all_data['metadatas']):
+                if 'timestamp' in metadata:
+                    try:
+                        episode_time = datetime.fromisoformat(metadata['timestamp'])
+                        if episode_time < cutoff_time:
+                            ids_to_delete.append(all_data['ids'][i])
+                    except:
+                        pass
+            
+            # If still too many episodes, delete oldest ones
+            if (stats['episodes_before'] - len(ids_to_delete)) > max_episodes:
+                # Get episodes sorted by timestamp (oldest first)
+                episodes_with_time = []
+                for i, metadata in enumerate(all_data['metadatas']):
+                    if all_data['ids'][i] not in ids_to_delete and 'timestamp' in metadata:
+                        try:
+                            episode_time = datetime.fromisoformat(metadata['timestamp'])
+                            episodes_with_time.append((all_data['ids'][i], episode_time))
+                        except:
+                            pass
+                
+                episodes_with_time.sort(key=lambda x: x[1])
+                
+                # Calculate how many more to delete
+                current_count = stats['episodes_before'] - len(ids_to_delete)
+                need_to_delete = current_count - max_episodes
+                
+                if need_to_delete > 0:
+                    ids_to_delete.extend([ep_id for ep_id, _ in episodes_with_time[:need_to_delete]])
+            
+            # Delete episodes in batches
+            if ids_to_delete:
+                batch_size = 100
+                for i in range(0, len(ids_to_delete), batch_size):
+                    batch = ids_to_delete[i:i + batch_size]
+                    self.collection.delete(ids=batch)
+                    stats['episodes_deleted'] += len(batch)
+            
+            stats['episodes_after'] = self.collection.count()
+            
+            logger.info(f"🧹 Pruned {stats['episodes_deleted']} old episodes (kept {stats['episodes_after']})")
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Error pruning episodes: {e}")
+            return {'error': str(e)}
 
 # Global instance
 episodic_memory = EpisodicMemory()

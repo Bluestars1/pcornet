@@ -6,6 +6,7 @@ where analysts can request to add, remove, or modify information like SNOMED
 codes, ICD descriptions, and other data elements during their conversation.
 """
 
+import os
 import json
 import logging
 from typing import Dict, List, Any, Optional, Set
@@ -23,6 +24,29 @@ class DataItem:
     metadata: Dict[str, Any] = field(default_factory=dict)
     added_at: datetime = field(default_factory=datetime.now)
     source_query: str = ""
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize DataItem to dictionary for JSON storage."""
+        return {
+            'item_type': self.item_type,
+            'key': self.key,
+            'value': self.value,
+            'metadata': self.metadata,
+            'added_at': self.added_at.isoformat(),
+            'source_query': self.source_query
+        }
+    
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> 'DataItem':
+        """Deserialize DataItem from dictionary."""
+        return DataItem(
+            item_type=data['item_type'],
+            key=data['key'],
+            value=data['value'],
+            metadata=data.get('metadata', {}),
+            added_at=datetime.fromisoformat(data['added_at']),
+            source_query=data.get('source_query', '')
+        )
 
 @dataclass
 class InteractiveContext:
@@ -32,6 +56,30 @@ class InteractiveContext:
     query_history: List[str] = field(default_factory=list)
     modifications: List[Dict[str, Any]] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.now)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize InteractiveContext to dictionary for JSON storage."""
+        return {
+            'session_id': self.session_id,
+            'current_data': {key: item.to_dict() for key, item in self.current_data.items()},
+            'query_history': self.query_history,
+            'modifications': self.modifications,
+            'created_at': self.created_at.isoformat()
+        }
+    
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> 'InteractiveContext':
+        """Deserialize InteractiveContext from dictionary."""
+        context = InteractiveContext(
+            session_id=data['session_id'],
+            query_history=data.get('query_history', []),
+            modifications=data.get('modifications', []),
+            created_at=datetime.fromisoformat(data['created_at'])
+        )
+        # Deserialize current_data
+        for key, item_data in data.get('current_data', {}).items():
+            context.current_data[key] = DataItem.from_dict(item_data)
+        return context
 
 class InteractiveSession:
     """
@@ -45,13 +93,29 @@ class InteractiveSession:
     - Request different data formats or additional details
     """
     
-    def __init__(self):
-        """Initialize the interactive session manager."""
+    def __init__(self, storage_dir: str = "data/sessions"):
+        """Initialize the interactive session manager with persistence support."""
         self.contexts: Dict[str, InteractiveContext] = {}
         self.current_session_id: Optional[str] = None
+        self.storage_dir = storage_dir
+        
+        # Create storage directory if it doesn't exist
+        os.makedirs(self.storage_dir, exist_ok=True)
+        logger.info(f"Interactive session manager initialized with storage: {self.storage_dir}")
         
     def start_session(self, session_id: str) -> InteractiveContext:
-        """Start a new interactive session."""
+        """Start a new interactive session or load existing one from disk."""
+        # Check if already in memory
+        if session_id in self.contexts:
+            self.current_session_id = session_id
+            return self.contexts[session_id]
+        
+        # Try to load from disk
+        if self.load_session(session_id):
+            self.current_session_id = session_id
+            return self.contexts[session_id]
+        
+        # Create new session
         context = InteractiveContext(session_id=session_id)
         self.contexts[session_id] = context
         self.current_session_id = session_id
@@ -78,6 +142,8 @@ class InteractiveSession:
         Returns:
             True if this is a modification request
         """
+        import re
+        
         query_lower = query.lower()
         
         # Addition keywords
@@ -113,6 +179,21 @@ class InteractiveSession:
         context_references = ["this", "these", "current", "existing", "shown"]
         has_context_ref = any(ref in query_lower for ref in context_references)
         
+        # NEW: Check if query contains ICD or SNOMED code patterns
+        # ICD pattern: Letter followed by digits (e.g., R52, E11.9, I10)
+        icd_pattern = r'\b[A-Z]\d{1,3}(?:\.\d+)?\b'
+        # SNOMED pattern: 6-10 digit numbers
+        snomed_pattern = r'\b\d{6,10}\b'
+        
+        has_code_pattern = bool(re.search(icd_pattern, query.upper()) or 
+                                re.search(snomed_pattern, query))
+        
+        # If has modifier + code pattern, it's a modification request
+        # E.g., "remove R52" or "add 73211009"
+        if has_modifier and has_code_pattern:
+            return True
+        
+        # Original logic: modifier + (data reference or context reference)
         return has_modifier and (has_data_reference or has_context_ref)
     
     def detect_modification_type(self, query: str) -> str:
@@ -182,6 +263,10 @@ class InteractiveSession:
         })
         
         logger.info(f"Added {item.item_type} {item.key} to session {session_id}")
+        
+        # Auto-save after modification
+        self.auto_save_session(session_id)
+        
         return True
     
     def remove_data_item(self, session_id: str, key: str) -> bool:
@@ -202,6 +287,10 @@ class InteractiveSession:
             })
             
             logger.info(f"Removed {key} from session {session_id}")
+            
+            # Auto-save after modification
+            self.auto_save_session(session_id)
+            
             return True
         return False
     
@@ -338,6 +427,283 @@ class InteractiveSession:
             "item_types": type_counts,
             "queries_processed": len(context.query_history),
             "modifications_made": len(context.modifications)
+        }
+    
+    # ========================================================================
+    # SESSION PERSISTENCE METHODS
+    # ========================================================================
+    
+    def save_session(self, session_id: str) -> bool:
+        """
+        Save session data to disk.
+        
+        Args:
+            session_id: ID of the session to save
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if session_id not in self.contexts:
+                logger.warning(f"Cannot save session {session_id}: not found in memory")
+                return False
+            
+            context = self.contexts[session_id]
+            filepath = os.path.join(self.storage_dir, f"{session_id}.json")
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(context.to_dict(), f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"💾 Saved session data for {session_id} ({len(context.current_data)} items)")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error saving session {session_id}: {e}")
+            return False
+    
+    def load_session(self, session_id: str) -> bool:
+        """
+        Load session data from disk.
+        
+        Args:
+            session_id: ID of the session to load
+            
+        Returns:
+            True if successful, False if file doesn't exist or error occurs
+        """
+        try:
+            filepath = os.path.join(self.storage_dir, f"{session_id}.json")
+            
+            if not os.path.exists(filepath):
+                return False
+            
+            with open(filepath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            context = InteractiveContext.from_dict(data)
+            self.contexts[session_id] = context
+            
+            logger.info(f"📂 Loaded session data for {session_id} ({len(context.current_data)} items)")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error loading session {session_id}: {e}")
+            return False
+    
+    def auto_save_session(self, session_id: str) -> None:
+        """
+        Auto-save session after modifications. Logs errors but doesn't fail.
+        
+        Args:
+            session_id: ID of the session to auto-save
+        """
+        try:
+            self.save_session(session_id)
+        except Exception as e:
+            logger.error(f"Auto-save failed for session {session_id}: {e}")
+    
+    def set_active_chat(self, session_id: str) -> None:
+        """
+        Switch to a different chat session, loading from disk if needed.
+        
+        Args:
+            session_id: ID of the session to activate
+        """
+        # Try to load from disk if not in memory
+        if session_id not in self.contexts:
+            loaded = self.load_session(session_id)
+            if loaded:
+                logger.info(f"🔄 Active chat set to: {session_id} (loaded from disk)")
+            else:
+                # Create new session
+                self.start_session(session_id)
+                logger.info(f"🔄 Active chat set to: {session_id} (new session)")
+        else:
+            logger.info(f"🔄 Active chat set to: {session_id} (already in memory)")
+        
+        self.current_session_id = session_id
+    
+    def has_session(self, session_id: str) -> bool:
+        """
+        Check if a session exists (in memory or on disk).
+        
+        Args:
+            session_id: ID of the session to check
+            
+        Returns:
+            True if session exists
+        """
+        if session_id in self.contexts:
+            return True
+        
+        filepath = os.path.join(self.storage_dir, f"{session_id}.json")
+        return os.path.exists(filepath)
+    
+    def save_all_sessions(self) -> int:
+        """
+        Save all active sessions to disk.
+        
+        Returns:
+            Number of sessions successfully saved
+        """
+        saved_count = 0
+        for session_id in self.contexts.keys():
+            if self.save_session(session_id):
+                saved_count += 1
+        
+        logger.info(f"💾 Saved {saved_count}/{len(self.contexts)} sessions to disk")
+        return saved_count
+    
+    def list_saved_sessions(self) -> List[str]:
+        """
+        List all session IDs that have saved files.
+        
+        Returns:
+            List of session IDs
+        """
+        try:
+            if not os.path.exists(self.storage_dir):
+                return []
+            
+            files = os.listdir(self.storage_dir)
+            session_ids = [f.replace('.json', '') for f in files if f.endswith('.json')]
+            return session_ids
+            
+        except Exception as e:
+            logger.error(f"Error listing saved sessions: {e}")
+            return []
+    
+    def clear_session(self, session_id: str, delete_file: bool = False) -> bool:
+        """
+        Clear session from memory and optionally delete from disk.
+        
+        Args:
+            session_id: ID of the session to clear
+            delete_file: If True, also delete the file from disk
+            
+        Returns:
+            True if successful
+        """
+        try:
+            # Remove from memory
+            if session_id in self.contexts:
+                del self.contexts[session_id]
+                logger.info(f"🗑️ Cleared session {session_id} from memory")
+            
+            # Optionally delete file
+            if delete_file:
+                filepath = os.path.join(self.storage_dir, f"{session_id}.json")
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                    logger.info(f"🗑️ Deleted session file: {filepath}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error clearing session {session_id}: {e}")
+            return False
+    
+    def cleanup_old_sessions(self, max_age_days: int = 7, max_memory_sessions: int = 10) -> Dict[str, int]:
+        """
+        Clean up old sessions to prevent memory bloat and disk accumulation.
+        
+        Args:
+            max_age_days: Delete session files older than this many days
+            max_memory_sessions: Keep only this many sessions in memory
+            
+        Returns:
+            Dict with cleanup statistics
+        """
+        try:
+            from datetime import timedelta
+            
+            stats = {
+                'memory_sessions_before': len(self.contexts),
+                'memory_sessions_cleared': 0,
+                'disk_files_deleted': 0,
+                'disk_files_total': 0
+            }
+            
+            # 1. Clean up memory: keep only most recent sessions
+            if len(self.contexts) > max_memory_sessions:
+                # Sort by creation time, keep newest
+                sorted_sessions = sorted(
+                    self.contexts.items(),
+                    key=lambda x: x[1].created_at,
+                    reverse=True
+                )
+                
+                # Keep only the newest max_memory_sessions
+                sessions_to_keep = {sid: ctx for sid, ctx in sorted_sessions[:max_memory_sessions]}
+                sessions_to_remove = [sid for sid, _ in sorted_sessions[max_memory_sessions:]]
+                
+                for session_id in sessions_to_remove:
+                    # Save before removing from memory
+                    self.save_session(session_id)
+                    del self.contexts[session_id]
+                    stats['memory_sessions_cleared'] += 1
+                
+                self.contexts = sessions_to_keep
+                logger.info(f"🧹 Cleared {stats['memory_sessions_cleared']} sessions from memory (kept {len(self.contexts)})")
+            
+            # 2. Clean up disk: delete old session files
+            if os.path.exists(self.storage_dir):
+                cutoff_time = datetime.now() - timedelta(days=max_age_days)
+                
+                for filename in os.listdir(self.storage_dir):
+                    if not filename.endswith('.json'):
+                        continue
+                    
+                    filepath = os.path.join(self.storage_dir, filename)
+                    stats['disk_files_total'] += 1
+                    
+                    # Check file age
+                    file_mtime = datetime.fromtimestamp(os.path.getmtime(filepath))
+                    
+                    if file_mtime < cutoff_time:
+                        os.remove(filepath)
+                        stats['disk_files_deleted'] += 1
+                        logger.debug(f"🗑️ Deleted old session file: {filename} (age: {datetime.now() - file_mtime})")
+            
+            logger.info(f"🧹 Session cleanup complete: memory cleared={stats['memory_sessions_cleared']}, disk deleted={stats['disk_files_deleted']}/{stats['disk_files_total']}")
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Error during session cleanup: {e}")
+            return {'error': str(e)}
+    
+    def get_memory_usage_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about current memory usage by sessions.
+        
+        Returns:
+            Dict with memory usage statistics
+        """
+        total_items = 0
+        total_size_estimate = 0
+        
+        for session_id, context in self.contexts.items():
+            session_items = len(context.current_data)
+            total_items += session_items
+            
+            # Rough size estimate (bytes)
+            for item in context.current_data.values():
+                total_size_estimate += len(str(item.value))
+                total_size_estimate += len(str(item.metadata))
+        
+        return {
+            'total_sessions_in_memory': len(self.contexts),
+            'total_data_items': total_items,
+            'estimated_size_bytes': total_size_estimate,
+            'estimated_size_mb': round(total_size_estimate / (1024 * 1024), 2),
+            'sessions': {
+                sid: {
+                    'items': len(ctx.current_data),
+                    'created': ctx.created_at.isoformat(),
+                    'modifications': len(ctx.modifications)
+                }
+                for sid, ctx in self.contexts.items()
+            }
         }
 
 # Global instance for easy access

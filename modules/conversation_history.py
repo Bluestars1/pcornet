@@ -294,6 +294,12 @@ class ConversationHistory:
             bool: True if the save operation was successful, False otherwise.
         """
         try:
+            # CRITICAL: Enforce rolling window BEFORE saving to prevent file bloat
+            if len(self.messages) > self.max_messages:
+                original_count = len(self.messages)
+                self.messages = self.messages[-self.max_messages:]
+                logger.warning(f"Trimmed conversation history before save: {original_count} → {len(self.messages)} messages")
+            
             # Convert messages to serializable format
             serializable_messages = []
             for message in self.messages:
@@ -413,6 +419,12 @@ class ConversationHistory:
             
             # Construct full path
             custom_file = os.path.join(saved_dir, filename)
+            
+            # CRITICAL: Enforce rolling window BEFORE saving to prevent file bloat
+            if len(self.messages) > self.max_messages:
+                original_count = len(self.messages)
+                self.messages = self.messages[-self.max_messages:]
+                logger.warning(f"Trimmed conversation history before custom save: {original_count} → {len(self.messages)} messages")
             
             # Convert messages to serializable format
             serializable_messages = []

@@ -130,6 +130,57 @@ class AppConfig:
 
         # Log loaded variables for verification
         self._log_loaded_variables()
+        
+        # General settings
+        self.agent_temperature = float(os.getenv("AGENT_TEMPERATURE", 0.7))
+
+        # Azure OpenAI settings
+        self.azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        self.azure_openai_api_key = os.getenv("AZURE_OPENAI_API_KEY")
+        self.azure_openai_api_version = os.getenv("AZURE_OPENAI_API_VERSION")
+        self.azure_openai_chat_deployment = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT")
+        self.azure_openai_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
+
+        # Azure AI Search settings
+        self.azure_ai_search_endpoint = os.getenv("AZURE_AI_SEARCH_ENDPOINT")
+        self.azure_ai_search_api_key = os.getenv("AZURE_AI_SEARCH_API_KEY")
+        self.pcornet_icd_index = os.getenv("PCORNET_ICD_INDEX_NAME", "pcornet-icd-index")
+        
+        # Search configuration
+        self.search_top_k = int(os.getenv("AZURE_SEARCH_TOP_K", os.getenv("SEARCH_TOP_K", "10")))
+        
+        # Multi-Index Registry: Define all available search indices with their configurations
+        self.indices = {
+            "icd": IndexConfig(
+                name=os.getenv("PCORNET_ICD_INDEX_NAME", "pcornet-icd-index"),
+                vector_field="content_vector",  # Updated to match actual index schema
+                search_fields=["STR", "CODE"],  # REL is retrievable but not searchable
+                semantic_config=None,  # Temporarily disabled - semantic config may not exist
+                description="ICD-10 diagnosis codes with SNOMED CT relationships and OHDSI mappings"
+            ),
+            "snomed": IndexConfig(
+                name=os.getenv("PCORNET_SNOMED_INDEX_NAME", "pcornet-snomedus-index_v1"),
+                vector_field="content_vector",
+                search_fields=["STR", "CODE", "SAB"],
+                semantic_config="pcornet-semantic-config",
+                description="SNOMED CT US Edition clinical terminology concepts and relationships"
+            )
+        }
+
+        # Additional properties for compatibility
+        self.endpoint = self.azure_openai_endpoint
+        self.api_key = self.azure_openai_api_key
+        self.api_version = self.azure_openai_api_version
+        self.chat_deployment = self.azure_openai_chat_deployment
+        
+        # Validation settings
+        self.agent_max_tokens = int(os.getenv("AGENT_MAX_TOKENS", "2000"))
+        self.request_timeout = int(os.getenv("REQUEST_TIMEOUT", "30"))
+        self.max_retries = int(os.getenv("MAX_RETRIES", "3"))
+        self.max_conversation_messages = int(os.getenv("MAX_CONVERSATION_MESSAGES", "20"))
+
+        # Log loaded variables for verification
+        self._log_loaded_variables()
 
     def _log_loaded_variables(self):
         """Logs the loaded configuration variables for verification."""

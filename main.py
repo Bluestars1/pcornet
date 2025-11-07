@@ -55,18 +55,33 @@ from modules.interactive_session import interactive_session
 
 logger = logging.getLogger(__name__)
 
+# Response size limits to prevent file bloat
+MAX_RESPONSE_SIZE = 50000  # 50KB per response
+MAX_RESPONSE_PREVIEW_SIZE = 1000  # Show first 1000 chars if truncated
+
+def truncate_response_if_needed(response: str) -> tuple[str, bool]:
+    """
+    Truncate response if it exceeds size limits to prevent file bloat.
+    
+    Returns:
+        tuple: (truncated_response, was_truncated)
+    """
+    if len(response) <= MAX_RESPONSE_SIZE:
+        return response, False
+    
+    # Truncate with warning message
+    truncated = response[:MAX_RESPONSE_PREVIEW_SIZE]
+    warning = f"\n\n⚠️ **Response truncated** (original: {len(response):,} chars, limit: {MAX_RESPONSE_SIZE:,} chars)\n\nThis is likely due to a rate limit error or very large search results. The full response was not saved to prevent file bloat."
+    logger.warning(f"Response truncated from {len(response)} to {len(truncated)} chars")
+    return truncated + warning, True
+
 def setup_logging(verbose: bool = False):
     """Set up logging configuration based on verbose flag."""
-    log_level = logging.INFO if verbose else logging.WARNING
-    
-    root_logger = logging.getLogger()
-    if root_logger.handlers:
-        for handler in root_logger.handlers:
-            root_logger.removeHandler(handler)
-    
     logging.basicConfig(
-        level=log_level,
+        level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        filename='app.log',
+        filemode='w',
         force=True
     )
 
@@ -206,7 +221,8 @@ def main():
     """
     PCORnet Assistant with full sidebar functionality.
     """
-    setup_logging(verbose=False)
+    setup_logging(verbose=True)
+    logger.info("🚀 Streamlit App Started")
     
     st.set_page_config(
         page_title="PCORNET Concept Set Tool",
@@ -217,18 +233,20 @@ def main():
     # Initialize session state
     if 'agent' not in st.session_state:
         try:
-            st.session_state.agent = MasterAgent()
+            logger.info("🔄 Starting MasterAgent initialization...")
+            with st.spinner("🔄 Initializing agents... (this may take a moment on first run)"):
+                st.session_state.agent = MasterAgent()
             st.session_state.initialized = True
+            logger.info("✅ MasterAgent initialized successfully")
         except Exception as e:
             st.error(f"❌ Failed to initialize agent: {e}")
+            logger.exception("Failed to initialize MasterAgent")
             st.session_state.initialized = False
-    # Cache control headers (no styling needed - fonts are in config.toml)
-    cache_headers = """
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    """
-    st.markdown(cache_headers, unsafe_allow_html=True)
+    # Load external CSS (much faster than inline styles)
+    css_file = "static/styles.css"
+    if os.path.exists(css_file):
+        with open(css_file) as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
     if 'messages' not in st.session_state:
         st.session_state.messages = load_chat_history_from_file()
@@ -249,407 +267,20 @@ def main():
         st.session_state.interactive_session_id = f"streamlit_{uuid.uuid4().hex[:8]}"
         logger.info(f"Created new interactive session ID: {st.session_state.interactive_session_id}")
     
-    # Apply minimal CSS for theme-specific colors (config.toml handles base theme)
+    # Apply theme-specific colors (layout CSS is in external file)
     if st.session_state.theme == 'dark':
-        theme_css = """
-        <style>
-        /* Dark mode color overrides */
+        st.markdown("""<style>
         .stApp { background-color: #0e1117 !important; color: #fafafa !important; }
         [data-testid="stSidebar"] { background-color: #1a1d29 !important; }
-        [data-testid="collapsedControl"] { background-color: #4a5568 !important; color: #fafafa !important; }
-        [data-testid="collapsedControl"]:hover { background-color: #5a6578 !important; }
-        
-        /* Top status bar / header */
-        [data-testid="stHeader"], header[data-testid="stHeader"] { background-color: #0e1117 !important; }
-        [data-testid="stStatusWidget"] { background-color: #0e1117 !important; color: #fafafa !important; }
-        [data-testid="stStatusWidget"] > div { background-color: #0e1117 !important; color: #fafafa !important; }
-        [data-testid="stToolbar"] { background-color: #0e1117 !important; }
-        
-        /* Chat input colors and surrounding area - dark gray theme */
-        [data-testid="stChatInput"] { background-color: #262730 !important; }
-        [data-testid="stChatInput"] textarea { background-color: #2d3142 !important; color: #fafafa !important; 
-            border: 1px solid #4a5568 !important; }
-        [data-testid="stChatInput"] textarea::placeholder { color: #9ca3af !important; }
-        /* Fixed input section background */
-        [data-testid="stBottom"], 
-        [data-testid="stChatInputContainer"], 
-        .stChatFloatingInputContainer { 
-            background-color: #262730 !important;
-            border-top: 1px solid #4a5568 !important;
-        }
-        
-        /* Button colors */
-        .stButton > button { background-color: #262730 !important; color: #fafafa !important; border: 2px solid #404050 !important; }
-        .stButton > button:hover { background-color: #363740 !important; }
-        .stButton > button[kind="primary"] { background-color: #4a5568 !important; }
-        
-        /* Theme toggle buttons */
-        button[key="light_mode"] { background: #e5e7eb !important; color: #1a202c !important; }
-        button[key="dark_mode"] { background: #1a1d29 !important; color: #fafafa !important; }
-        button[key="dark_mode"][kind="primary"] { border: 4px solid #3b82f6 !important; }
-        
-        /* Chat messages */
+        [data-testid="stBottom"], [data-testid="stChatInputContainer"] { background-color: #262730 !important; border-top: 1px solid #4a5568 !important; }
         .stChatMessage { background-color: #1e2130 !important; border: 2px solid #4a5568 !important; }
-        .stChatMessage p, .stChatMessage li { color: #e5e7eb !important; }
-        .stChatMessage code { background-color: #262730 !important; color: #f0f2f6 !important; }
-        
-        /* Text colors */
-        h1, h2, h3 { color: #fafafa !important; }
-        [data-testid="stSidebar"] p, [data-testid="stSidebar"] span { color: #e5e7eb !important; }
-        table, table td, table th { color: #e5e7eb !important; border-color: #e5e7eb !important; }
-        
-        /* Additional dark mode coverage */
-        .main .block-container { background-color: #0e1117 !important; }
-        section[data-testid="stMain"] { background-color: #0e1117 !important; }
-        [data-testid="stAppViewContainer"] { background-color: #0e1117 !important; }
-        
-        /* Ensure nested input containers inherit parent background */
-        [data-testid="stChatInput"] > div, 
-        [data-testid="stChatInput"] > div > div { background-color: inherit !important; }
-        
-        /* Fix dark mode input container */
-        .st-bz {
-            background-color: black;
-        }
-        </style>
-        """
+        .stButton > button { background-color: #262730 !important; color: #fafafa !important; }
+        </style>""", unsafe_allow_html=True)
     else:
-        theme_css = """
-        <style>
-        /* Light mode - minimal overrides (config.toml provides base) */
-        [data-testid="collapsedControl"] { background-color: #4b5563 !important; color: #ffffff !important; }
-        [data-testid="collapsedControl"]:hover { background-color: #374151 !important; }
-        
-        /* Chat input colors - reversed */
-        [data-testid="stChatInput"] textarea { background-color: #ffffff !important; border: 1px solid #9ca3af !important; }
-        [data-testid="stChatInput"] textarea::placeholder { color: #6b7280 !important; }
-        /* Fixed input section background */
-        [data-testid="stBottom"], 
-        [data-testid="stChatInputContainer"], 
-        .stChatFloatingInputContainer { 
-            background-color: #f8f9fa !important;
-            border-top: 1px solid #e5e7eb !important;
-        }
-        
-        /* Theme toggle buttons */
-        button[key="light_mode"] { background: #e5e7eb !important; color: #1a202c !important; }
-        button[key="light_mode"][kind="primary"] { border: 4px solid #3b82f6 !important; }
-        button[key="dark_mode"] { background: #1a1d29 !important; color: #fafafa !important; }
-        
-        /* Chat messages */
-        .stChatMessage { border: 2px solid #9ca3af !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .stChatMessage code { background-color: #f3f4f6 !important; border: 1px solid #d1d5db !important; }
-        </style>
-        """
-    
-    st.markdown(theme_css, unsafe_allow_html=True)
-    
-    # Additional CSS for layout - high specificity to override Streamlit defaults
-    st.markdown("""
-    <style>
-    /* CSS Specificity Booster - ensures our styles override Streamlit config */
-    :root {
-        --custom-override: true;
-        --input-section-height: 80px;
-    }
-    
-    /* Main container split: scrollable top section + fixed bottom input */
-    section.main {
-        display: flex !important;
-        flex-direction: column !important;
-        height: 100vh !important;
-        overflow: hidden !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        position: relative !important;
-    }
-    
-    /* Chat messages area - scrollable top section extending to edge */
-    section.main > div.block-container {
-        flex: 1 1 auto !important;
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
-        padding-bottom: calc(var(--input-section-height) + 1em) !important;
-        min-height: 0 !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-    }
-    
-    /* Title with minimal padding and margins */
-    [data-testid="stAppViewContainer"] > div:first-child {
-        padding-top: 0 !important;
-        margin-top: 0 !important;
-    }
-    h1 {
-        margin-top: 0 !important;
-        margin-bottom: 0 !important;
-        padding-top: 0.25em !important;
-        padding-bottom: 0.25em !important;
-    }
-    /* Main block container - reduce top padding */
-    .block-container {
-        padding-top: 0.5em !important;
-        margin-top: 0 !important;
-        margin-bottom: 0 !important;
-    }
-    /* Reduce divider margins */
-    hr {
-        margin-top: 0.25em !important;
-        margin-bottom: 0.25em !important;
-    }
-    /* Reduce element container spacing */
-    .element-container {
-        margin-top: 0 !important;
-        padding-top: 0 !important;
-    }
-    /* Reduce chat message spacing and ensure proper width */
-    .stChatMessage {
-        margin-top: 0.25em !important;
-        margin-bottom: 0.25em !important;
-        padding: 0.75em !important;
-        padding-bottom: 0.75em !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-        word-wrap: break-word !important;
-        overflow-wrap: break-word !important;
-        overflow: visible !important;
-    }
-    /* Ensure chat message content is fully visible */
-    .stChatMessage p, .stChatMessage ul, .stChatMessage ol, .stChatMessage div {
-        margin-bottom: 0.5em !important;
-    }
-    .stChatMessage p:last-child, .stChatMessage ul:last-child, .stChatMessage ol:last-child {
-        margin-bottom: 0 !important;
-    }
-    /* Reduce vertical block spacing */
-    [data-testid="stVerticalBlock"] > div {
-        gap: 0.25em !important;
-    }
-    /* Sidebar flex column layout with spacing */
-    [data-testid="stSidebar"] {
-        padding: 0 !important;
-    }
-    [data-testid="stSidebar"] > div:first-child {
-        padding-top: 2em !important;
-        padding-left: 1em !important;
-        padding-right: 1em !important;
-        padding-bottom: 1em !important;
-        display: flex !important;
-        flex-direction: column !important;
-        height: 100vh !important;
-        box-sizing: border-box !important;
-    }
-    /* Override auto-generated emotion cache classes in sidebar */
-    [data-testid="stSidebar"] [class*="st-emotion-cache"] {
-        padding-top: 0 !important;
-        margin-top: 0 !important;
-    }
-    [data-testid="stSidebar"] > div > [class*="st-emotion-cache"]:first-child {
-        padding-top: 0 !important;
-        margin-top: 0 !important;
-    }
-    /* Sidebar content padding - stable selector */
-    [data-testid="stSidebarContent"] {
-        padding-top: 0 !important;
-        padding-bottom: 0.5em !important;
-        padding-left: 0.25em !important;
-        padding-right: 0.25em !important;
-        margin-top: 0 !important;
-        margin-bottom: 0.25em !important;
-        height: 100% !important;
-    }
-    /* Main area element container padding - stable selector */
-    section.main div.element-container > div {
-        padding: 0px !important;
-    }
-    /* Additional padding for chat content within scrollable area */
-    section.main > div.block-container > div {
-        padding-bottom: 0 !important;
-        margin-bottom: 0 !important;
-    }
-    /* Chat input container styling - stable selector */
-    [data-testid="stChatInput"] {
-        max-width: 90% !important;
-        box-sizing: border-box !important;
-        width: 90% !important;
-        margin: 0 auto !important;
-        display: block !important;
-    }
-    /* Ensure textarea and file input stay within bounds */
-    [data-testid="stChatInput"] textarea {
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-        width: 100% !important;
-        height: 1.2em !important;
-        min-height: 1.2em !important;
-        line-height: 1.2em !important;
-    }
-    /* Chat input nested containers - consolidated */
-    [data-testid="stChatInput"] > div,
-    [data-testid="stChatInput"] > div > div {
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-        padding: 1em !important;
-        background-color: inherit !important;
-    }
-    [data-testid="stChatInput"] > div > div > div {
-        padding: 1em !important;
-    }
-    [data-testid="stChatInput"] input[type="file"] {
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-    }
-    /* Limit file uploader container */
-    [data-testid="stChatInput"] [data-testid="stFileUploader"] {
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-        overflow: hidden !important;
-    }
-    /* Hide duplicate file uploaders - keep only first one */
-    [data-testid="stChatInput"] [data-testid="stFileUploader"]:not(:first-of-type) {
-        display: none !important;
-    }
-    /* Fixed chat input section at bottom - extends to browser edge */
-    [data-testid="stBottom"],
-    [data-testid="stChatInputContainer"],
-    .stChatFloatingInputContainer {
-        position: fixed !important;
-        bottom: 0px !important;
-        left: var(--sidebar-width, 21rem) !important;
-        right: 0 !important;
-        width: auto !important;
-        height: var(--input-section-height) !important;
-        padding: 1em !important;
-        margin: 0 !important;
-        box-sizing: border-box !important;
-        overflow: visible !important;
-        z-index: 100 !important;
-        flex-shrink: 0 !important;
-        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1) !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    /* Chat input when sidebar is collapsed */
-    [data-testid="collapsedControl"] ~ * [data-testid="stBottom"],
-    [data-testid="collapsedControl"] ~ * [data-testid="stChatInputContainer"],
-    [data-testid="collapsedControl"] ~ * .stChatFloatingInputContainer {
-        left: 0 !important;
-    }
-    [data-testid="stSidebar"] .block-container {
-        padding: 0 !important;
-        flex: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-    }
-    section[data-testid="stSidebar"] > div {
-        padding: 0 !important;
-    }
-    /* Minimize vertical spacing in sidebar */
-    [data-testid="stSidebar"] p {
-        margin: 0 !important;
-        padding: 0 !important;
-        line-height: 1.2 !important;
-    }
-    [data-testid="stSidebar"] .element-container {
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-    [data-testid="stSidebar"] .stMarkdown {
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-    [data-testid="stSidebar"] .row-widget {
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-    [data-testid="stSidebar"] hr {
-        margin: 0.5em 0 !important;
-    }
-    /* Hide empty elements in sidebar */
-    [data-testid="stSidebar"] .element-container:empty {
-        display: none !important;
-    }
-    [data-testid="stSidebar"] div:empty {
-        display: none !important;
-    }
-    /* Sidebar buttons - spacing and centering */
-    [data-testid="stSidebar"] .stButton {
-        margin-top: 0.25em !important;
-        margin-bottom: 0.25em !important;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-    }
-    [data-testid="stSidebar"] h2,
-    [data-testid="stSidebar"] h3 {
-        margin-top: 0.5em !important;
-        margin-bottom: 0.25em !important;
-        padding: 0 !important;
-    }
-    /* Center info boxes vertically in sidebar */
-    [data-testid="stSidebar"] .stAlert,
-    [data-testid="stSidebar"] [data-testid="stAlert"],
-    [data-testid="stSidebar"] [data-testid="stNotification"] {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        text-align: center !important;
-        min-height: 100px !important;
-        height: 100% !important;
-        padding-top: 0 !important;
-        margin-top: 0 !important;
-    }
-    [data-testid="stSidebar"] .element-container:has(.stAlert),
-    [data-testid="stSidebar"] .element-container:has([data-testid="stAlert"]) {
-        padding-top: 0 !important;
-        margin-top: 0 !important;
-    }
-    /* Theme section - center buttons and reduce height */
-    [class*="st-emotion"][class*="cache"] [data-testid="column"] {
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        min-height: auto !important;
-        padding: 0.1em !important;
-        padding-bottom: 0 !important;
-    }
-    /* Center theme buttons in their cells */
-    [data-testid="stSidebar"] button[key="light_mode"],
-    [data-testid="stSidebar"] button[key="dark_mode"] {
-        width: 45px !important;
-        height: 45px !important;
-        margin: 0 auto !important;
-        display: block !important;
-    }
-    [class*="st-emotion"][class*="cache"].row-widget.stHorizontal {
-        min-height: auto !important;
-        height: auto !important;
-        padding: 0.1em 0 !important;
-        padding-bottom: 0 !important;
-        margin: 0 !important;
-    }
-    [data-testid="stSidebar"] [class*="st-emotion"][class*="cache"] {
-        min-height: auto !important;
-        padding-bottom: 0 !important;
-    }
-    /* Hide empty columns and dividers that create visual artifacts */
-    .stColumn:empty, [data-testid="column"]:empty {
-        display: none !important;
-    }
-    hr:empty {
-        display: none !important;
-    }
-    /* Hide stray vertical elements */
-    section.main [data-testid="stVerticalBlock"] > div:empty {
-        display: none !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
+        st.markdown("""<style>
+        [data-testid="stBottom"], [data-testid="stChatInputContainer"] { background-color: #f8f9fa !important; border-top: 1px solid #e5e7eb !important; }
+        .stChatMessage { border: 2px solid #9ca3af !important; }
+        </style>""", unsafe_allow_html=True)
     
     # Check for delete confirmation BEFORE rendering sidebar to prevent recursion
     if st.session_state.delete_confirm_chat:
@@ -855,8 +486,18 @@ def main():
                         prompt, 
                         session_id=st.session_state.interactive_session_id
                     )
+                    
+                    # Truncate response if too large to prevent file bloat
+                    response_to_save, was_truncated = truncate_response_if_needed(response)
+                    
+                    # Show full response in UI (even if truncated for storage)
                     st.markdown(response)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+                    
+                    # Save truncated version to prevent file bloat
+                    st.session_state.messages.append({"role": "assistant", "content": response_to_save})
+                    
+                    if was_truncated:
+                        st.warning("⚠️ Response was very large and has been truncated in saved history")
                     
                     st.session_state.agent.save_conversation_history()
                     save_chat_history_to_file(st.session_state.messages)

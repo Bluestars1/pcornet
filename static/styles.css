@@ -1,0 +1,365 @@
+/* PCORNET Streamlit Application Styles - v2.1 */
+/* Updated: 2025-11-05 23:21 - Dark mode fix - AGGRESSIVE */
+
+/* Main container split: scrollable top section + fixed bottom input */
+section.main {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    position: relative !important;
+}
+
+/* Chat messages area - scrollable top section */
+section.main > div.block-container {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-bottom: calc(80px + 1em) !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+}
+
+/* Minimal spacing for title and containers */
+h1 {
+    margin: 0 !important;
+    padding: 0.25em 0 !important;
+}
+
+.block-container {
+    padding: 0.25em 1em !important;
+    margin: 0 !important;
+}
+
+/* Reduce element container padding */
+.element-container,
+.st-emotion-cache-90vs21 {
+    padding: 0.5em 0 !important;
+}
+
+/* Full width content area */
+.st-emotion-cache-vg5dnl,
+section.main .element-container > div {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Chat messages - compact spacing */
+.stChatMessage {
+    margin: 0.25em 0 !important;
+    padding: 0.5em !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    word-wrap: break-word !important;
+}
+
+/* Chat input wrapper - responsive centering */
+[data-testid="stChatInput"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 10% !important;
+    box-sizing: border-box !important;
+}
+
+/* Textarea - pill-shaped, 80% effective width */
+[data-testid="stChatInput"] textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 2.5em !important;
+    min-height: 2.5em !important;
+    border: 1px solid black !important;
+    color: black !important;
+    border-radius: 25px !important;
+    padding: 0.75em 1.25em !important;
+    box-sizing: border-box !important;
+}
+
+/* Fixed chat input at bottom - sticks to sidebar edge */
+[data-testid="stBottom"],
+[data-testid="stChatInputContainer"] {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: var(--sidebar-width, 21rem) !important;
+    right: 0 !important;
+    height: 80px !important;
+    padding: 1em 0 !important;
+    z-index: 99 !important;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* When sidebar is collapsed - go full width */
+body[data-sidebar-state="collapsed"] [data-testid="stBottom"],
+body[data-sidebar-state="collapsed"] [data-testid="stChatInputContainer"] {
+    left: 0 !important;
+}
+
+/* Sidebar toggle button should be above chat input */
+[data-testid="stSidebar"] button[kind="header"] {
+    z-index: 101 !important;
+}
+
+/* Chat floating input container background - light mode default */
+.stChatFloatingInputContainer {
+    background-color: #e5e7eb !important;
+    width: 100% !important;
+}
+
+[data-theme="light"] .stChatFloatingInputContainer {
+    background-color: #e5e7eb !important;
+}
+
+/* Dark mode override for floating container */
+[data-theme="dark"] .stChatFloatingInputContainer {
+    background-color: #1a1f2e !important;
+    background: #1a1f2e !important;
+}
+
+/* Sidebar - compact spacing */
+[data-testid="stSidebar"] {
+    padding: 1em !important;
+}
+
+[data-testid="stSidebar"] > div,
+[data-testid="stSidebar"] .block-container {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+[data-testid="stSidebar"] .element-container {
+    padding: 0.25em 0 !important;
+    margin: 0 !important;
+}
+
+[data-testid="stSidebar"] .stButton,
+[data-testid="stSidebar"] .stSelectbox,
+[data-testid="stSidebar"] .stTextInput,
+[data-testid="stSidebar"] .stNumberInput,
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] label {
+    margin: 0.25em 0 !important;
+}
+
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    margin: 0.5em 0 0.25em 0 !important;
+    padding: 0 !important;
+}
+
+[data-testid="stSidebar"] hr {
+    margin: 0.75em 0 !important;
+}
+
+/* Theme-specific styles */
+
+/* Light mode */
+[data-theme="light"] .stChatMessage {
+    background-color: #f9fafb;
+}
+
+/* Dark mode - Nuclear override - Force EVERYTHING dark */
+[data-theme="dark"] * {
+    background-color: #0f1419 !important;
+    color: #e5e7eb !important;
+}
+
+/* Critical: Force top header area to dark */
+[data-theme="dark"] header,
+[data-theme="dark"] [data-testid="stHeader"],
+[data-theme="dark"] [data-testid="stToolbar"],
+[data-theme="dark"] .stApp > header,
+[data-theme="dark"] div[data-testid="stHeader"] {
+    background-color: #1a1f2e !important;
+}
+
+/* Critical: Force bottom input area to dark - Multiple selectors */
+[data-theme="dark"] .stChatFloatingInputContainer,
+[data-theme="dark"] [data-testid="stChatInputContainer"],
+[data-theme="dark"] [data-testid="stBottom"],
+[data-theme="dark"] footer,
+[data-theme="dark"] div[class*="stChatFloatingInput"],
+[data-theme="dark"] div[class*="stBottom"] {
+    background-color: #1a1f2e !important;
+    background: #1a1f2e !important;
+}
+
+/* Override any inline styles on input container */
+[data-theme="dark"] [data-testid="stChatInputContainer"],
+[data-theme="dark"] [data-testid="stChatInputContainer"] > *,
+[data-theme="dark"] [data-testid="stChatInputContainer"] * {
+    background-color: #1a1f2e !important;
+}
+
+[data-theme="dark"] [data-testid="stBottom"],
+[data-theme="dark"] [data-testid="stBottom"] > *,
+[data-theme="dark"] [data-testid="stBottom"] * {
+    background-color: #1a1f2e !important;
+}
+
+/* Make sure input wrapper is also dark */
+[data-theme="dark"] [data-testid="stChatInput"],
+[data-theme="dark"] [data-testid="stChatInput"] > * {
+    background-color: transparent !important;
+}
+
+/* Sidebar dark */
+[data-theme="dark"] [data-testid="stSidebar"] {
+    background-color: #1a1f2e !important;
+}
+
+/* Chat messages dark */
+[data-theme="dark"] .stChatMessage {
+    background-color: #1a1f2e !important;
+    color: #e5e7eb !important;
+}
+
+/* Dark mode - High contrast - Aggressive overrides */
+[data-theme="dark"],
+[data-theme="dark"] body,
+[data-theme="dark"] #root,
+[data-theme="dark"] .main,
+[data-theme="dark"] section,
+[data-theme="dark"] div[data-testid="stAppViewContainer"],
+[data-theme="dark"] div[data-testid="stDecoration"] {
+    background-color: #0f1419 !important;
+}
+
+[data-theme="dark"] .stChatMessage {
+    background-color: #1a1f2e !important;
+    color: #e5e7eb !important;
+}
+
+[data-theme="dark"] section.main {
+    background-color: #0f1419 !important;
+}
+
+[data-theme="dark"] .stChatFloatingInputContainer {
+    background-color: #1a1f2e !important;
+}
+
+/* Force all potential white backgrounds to dark */
+[data-theme="dark"] *[style*="background-color: rgb(255, 255, 255)"],
+[data-theme="dark"] *[style*="background-color: white"],
+[data-theme="dark"] *[style*="background: white"],
+[data-theme="dark"] *[style*="background: rgb(255, 255, 255)"] {
+    background-color: #0f1419 !important;
+    background: #0f1419 !important;
+}
+
+[data-theme="dark"] [data-testid="stChatInput"] textarea {
+    background-color: #0f1419 !important;
+    color: #f3f4f6 !important;
+    border: 1px solid #374151 !important;
+}
+
+[data-theme="dark"] [data-testid="stChatInput"] textarea::placeholder {
+    color: #9ca3af !important;
+    opacity: 1 !important;
+}
+
+[data-theme="dark"] [data-testid="stBottom"],
+[data-theme="dark"] [data-testid="stChatInputContainer"] {
+    background-color: #1a1f2e !important;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3 {
+    color: #f9fafb !important;
+}
+
+[data-theme="dark"] p,
+[data-theme="dark"] span,
+[data-theme="dark"] div {
+    color: #e5e7eb !important;
+}
+
+[data-theme="dark"] .block-container {
+    background-color: #0f1419 !important;
+}
+
+[data-theme="dark"] .element-container {
+    background-color: transparent !important;
+}
+
+[data-theme="dark"] [data-testid="stHeader"] {
+    background-color: #0f1419 !important;
+}
+
+[data-theme="dark"] [data-testid="stToolbar"] {
+    background-color: #0f1419 !important;
+}
+
+[data-theme="dark"] .stAlert {
+    background-color: #1a1f2e !important;
+    color: #e5e7eb !important;
+}
+
+[data-theme="dark"] [data-testid="stSidebar"] {
+    background-color: #1a1f2e !important;
+}
+
+[data-theme="dark"] [data-testid="stSidebar"] * {
+    color: #e5e7eb !important;
+}
+
+/* Catch all remaining white areas */
+[data-theme="dark"] header,
+[data-theme="dark"] footer,
+[data-theme="dark"] nav,
+[data-theme="dark"] .css-1dp5vir,
+[data-theme="dark"] .css-eczf16,
+[data-theme="dark"] [class*="css-"] {
+    background-color: #0f1419 !important;
+}
+
+[data-theme="dark"] .main,
+[data-theme="dark"] section.main,
+[data-theme="dark"] .block-container {
+    background-color: #0f1419 !important;
+}
+
+/* Force specific problem areas to dark */
+[data-theme="dark"] .stChatFloatingInputContainer,
+[data-theme="dark"] [data-testid="stChatInputContainer"],
+[data-theme="dark"] [data-testid="stBottom"] {
+    background-color: #1a1f2e !important;
+}
+
+/* Target emotion cache classes that default to white */
+[data-theme="dark"] div[class*="st-emotion-cache"][class*="e"]:not([data-testid]) {
+    background-color: #0f1419 !important;
+}
+
+[data-theme="dark"] div[style*="rgb(255, 255, 255)"],
+[data-theme="dark"] div[style*="background-color: white"],
+[data-theme="dark"] section[style*="rgb(255, 255, 255)"] {
+    background-color: #0f1419 !important;
+    background: #0f1419 !important;
+}
+
+/* Override Streamlit's default white backgrounds */
+[data-theme="dark"] [data-baseweb="base-input"],
+[data-theme="dark"] [data-baseweb="select"],
+[data-theme="dark"] [data-baseweb="textarea"] {
+    background-color: #0f1419 !important;
+}
+
+/* Top and bottom bars must be dark */
+[data-theme="dark"] [data-testid="stHeader"],
+[data-theme="dark"] [data-testid="stStatusWidget"],
+[data-theme="dark"] [data-testid="stBottom"] {
+    background-color: #1a1f2e !important;
+}
+
+/* Ensure no white backgrounds slip through */
+[data-theme="dark"] * {
+    scrollbar-color: #374151 #0f1419 !important;
+}

@@ -207,5 +207,5 @@ OR: "I10, E11.9, I50.9"
             response = self.llm.invoke(messages)
             return response.content
         except Exception as e:
-            logger.error(f"Error in ChatAgent formatting concept set: {e}")
+            logger.error(f"[ChatAgent] Error formatting concept set: {e}")
             return f"⚠️ Error formatting the concept set: {e}"
