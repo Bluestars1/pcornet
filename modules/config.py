@@ -412,6 +412,49 @@ def create_openai_client():
         api_key=cfg.azure_openai_api_key,
     )
 
+def invoke_llm_with_retry(llm_callable, max_retries=3, initial_delay=2):
+    """
+    Wrapper to invoke any LLM with automatic retry on rate limit errors.
+    
+    Args:
+        llm_callable: A callable that invokes the LLM (e.g., lambda: llm.invoke(messages))
+        max_retries: Maximum number of retry attempts (default: 3)
+        initial_delay: Initial delay in seconds before first retry (default: 2)
+    
+    Returns:
+        The result from the LLM invocation
+    
+    Raises:
+        RateLimitError: If rate limit is still exceeded after all retries
+        Exception: For other errors during invocation
+    
+    Example:
+        result = invoke_llm_with_retry(lambda: llm.invoke([msg1, msg2]))
+    """
+    import time
+    from openai import RateLimitError
+    
+    logger = logging.getLogger(__name__)
+    
+    for attempt in range(max_retries):
+        try:
+            return llm_callable()
+            
+        except RateLimitError as e:
+            if attempt < max_retries - 1:
+                wait_time = initial_delay * (2 ** attempt)  # Exponential backoff
+                logger.warning(f"⚠️ Rate limit hit, retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                time.sleep(wait_time)
+            else:
+                logger.error(f"❌ Rate limit exceeded after {max_retries} attempts")
+                raise
+        
+        except Exception as e:
+            logger.error(f"❌ LLM invocation error: {e}")
+            raise
+    
+    raise Exception("Failed to invoke LLM after all retry attempts")
+
 # Prompt Templates
 CONCEPT_SET_CLASSIFICATION_PROMPT = """
 You are an expert at classifying user intent. Your task is to determine if the user's query is asking to create, generate, or find a "concept set".

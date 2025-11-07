@@ -734,12 +734,22 @@ Now generate the COMPLETE modified concept set table with ALL remaining codes:""
         system_msg = SystemMessage(content=context_with_instructions)
         user_msg = HumanMessage(content=query)
         
-        response_obj = llm_for_large_tables.invoke([system_msg, user_msg])
-        response = response_obj.content
+        # Use retry wrapper for rate limit handling
+        from modules.config import invoke_llm_with_retry
         
-        logger.info(f"[MasterAgent] ✅ Generated modified table ({len(response)} chars)")
-        
-        return response
+        try:
+            response_obj = invoke_llm_with_retry(
+                lambda: llm_for_large_tables.invoke([system_msg, user_msg]),
+                max_retries=3,
+                initial_delay=2
+            )
+            response = response_obj.content
+            logger.info(f"[MasterAgent] ✅ Generated modified table ({len(response)} chars)")
+            return response
+            
+        except Exception as e:
+            logger.error(f"[MasterAgent] ❌ Error generating modified table: {e}")
+            return f"⚠️ Unable to generate modified table. Please try again in a moment.\n\nError: {str(e)}"
     
     def _extract_and_expand_medical_query(self, query: str) -> str:
         """
