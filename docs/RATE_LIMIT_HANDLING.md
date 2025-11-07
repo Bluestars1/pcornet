@@ -90,20 +90,24 @@ response = invoke_llm_with_retry(
 
 ## Additional Solutions (Choose What Fits)
 
-### Option 2: Reduce Token Limits (Quick Fix)
+### Option 2: Reduce Token Limits (Quick Fix) ✅ NOW CONFIGURABLE
 
 Reduce the `max_tokens` setting to consume less of your quota:
 
 **File:** `.env`
 ```bash
-# Current setting (very high for S0 tier)
+# General chat responses (default: 2000)
 AGENT_MAX_TOKENS=2000
 
-# For concept sets, we override to 8000 in code
-# Consider reducing to 4000 or 6000 if tables are still reasonable
+# ✅ NEW: Configurable concept set table size (default: 8000)
+# For S0 tier, reduce to 3000-4000 to avoid rate limits
+CONCEPT_SET_MAX_TOKENS=4000  # Reduced from 8000 for S0 tier
+
+# For S1+ tier, keep at 8000 or higher for complete tables
+# CONCEPT_SET_MAX_TOKENS=8000
 ```
 
-**Trade-off:** Smaller tables may be truncated for very large concept sets.
+**Trade-off:** Smaller values may truncate very large concept sets (30+ codes with SNOMED).
 
 ### Option 3: Add Request Throttling (Server-Side)
 
@@ -256,6 +260,9 @@ if hasattr(response, 'usage'):
 # Reduce token limits to stay within S0 tier limits
 AGENT_MAX_TOKENS=1500  # Down from 2000
 
+# ✅ Reduce concept set table size for S0 tier
+CONCEPT_SET_MAX_TOKENS=3000  # Down from 8000 - prevents rate limits
+
 # Use lower temperature for more consistent responses
 AGENT_TEMPERATURE=0.3
 
@@ -263,14 +270,7 @@ AGENT_TEMPERATURE=0.3
 # Retries will handle transient rate limits
 ```
 
-**File:** `modules/master_agent.py`
-```python
-# Reduce max_tokens for concept set formatting
-llm_for_large_tables = AzureChatOpenAI(
-    # ...
-    max_tokens=4000,  # Down from 8000
-)
-```
+**No code changes needed!** The `CONCEPT_SET_MAX_TOKENS` setting is now configurable via `.env`.
 
 ## Recommended Configuration for Production (S1+)
 
@@ -366,7 +366,12 @@ System: ✅ [Returns complete table]
 
 2. **`modules/master_agent.py`**
    - Updated `_handle_concept_set_followup()` to use retry wrapper
-   - Lines 737-752
+   - Changed hard-coded `max_tokens=8000` to configurable `CONCEPT_SET_MAX_TOKENS`
+   - Lines 724-734, 737-752
+
+3. **`.env`**
+   - Added `CONCEPT_SET_MAX_TOKENS=8000` (configurable)
+   - Line 20
 
 ## Next Steps
 

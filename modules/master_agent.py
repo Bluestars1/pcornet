@@ -721,6 +721,9 @@ Now generate the COMPLETE modified concept set table with ALL remaining codes:""
         
         cfg = get_config()
         
+        # Get configurable max tokens for concept sets (default 8000, but can be reduced for S0 tier)
+        concept_set_max_tokens = int(os.getenv("CONCEPT_SET_MAX_TOKENS", "8000"))
+        
         # Create LLM with higher token limit for concept set modifications
         llm_for_large_tables = AzureChatOpenAI(
             azure_endpoint=cfg.azure_openai_endpoint,
@@ -728,7 +731,7 @@ Now generate the COMPLETE modified concept set table with ALL remaining codes:""
             api_version=cfg.azure_openai_api_version,
             deployment_name=os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT"),
             temperature=0.3,
-            max_tokens=8000,  # Much higher limit for large tables
+            max_tokens=concept_set_max_tokens,  # Configurable via CONCEPT_SET_MAX_TOKENS in .env
         )
         
         system_msg = SystemMessage(content=context_with_instructions)
