@@ -1,11 +1,27 @@
 [server]
 headless = true
 port = 8888
+address = "127.0.0.1"
+baseUrlPath = ""
+# enableCORS must be true when enableXsrfProtection is true (Streamlit requirement)
+enableCORS = true
+enableXsrfProtection = true
+enableWebsocketCompression = true
 
+[browser]
+gatherUsageStats = false
+serverAddress = "127.0.0.1"
+serverPort = 8888
+
+# Light theme configuration (default)
 [theme]
-# Use light theme as base, CSS will handle dark mode
 base = "light"
 primaryColor = "#3b82f6"
 backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f8f9fa"
 textColor = "#262730"
+font = "sans serif"
+
+# Note: [theme.sidebar] was removed in Streamlit 1.31+ - sidebar colors are now handled via CSS in main.py
+# Streamlit doesn't support runtime theme switching in config.toml,
+# so we use CSS for dynamic theme changes based on st.session_state.theme

@@ -21,7 +21,7 @@ class ConceptSetExtractorAgent:
         """
         Initializes the ConceptSetExtractorAgent.
         """
-        logger.info("✅ ConceptSetExtractorAgent initialized")
+        logger.info("[ConceptSetExtractorAgent] ✅ Initialized")
 
     def process(self, context_data: str) -> str:
         """
@@ -51,7 +51,7 @@ class ConceptSetExtractorAgent:
                 
                 # Log available fields for debugging
                 available_fields = list(document.keys())
-                logger.debug(f"📋 Extracting {code}: fields available = {available_fields}")
+                logger.debug(f"[ConceptSetExtractorAgent] 📋 Extracting {code}: fields available = {available_fields}")
                 
                 # Build line with code, label, and score
                 line = f"Code: {code}, Label: {label}, Score: {score:.4f}"
@@ -62,19 +62,19 @@ class ConceptSetExtractorAgent:
                     if field not in ["CODE", "STR", "id"] and value:
                         # Format field name nicely
                         additional_fields.append(f"{field}: {value}")
-                        logger.debug(f"📋 Added field {field} for {code}")
+                        logger.debug(f"[ConceptSetExtractorAgent] 📋 Added field {field} for {code}")
                 
                 if additional_fields:
                     line += ", " + ", ".join(additional_fields)
-                    logger.info(f"📋 Extracted {code} with {len(additional_fields)} additional fields (including OHDSI if present)")
+                    logger.info(f"[ConceptSetExtractorAgent] 📋 Extracted {code} with {len(additional_fields)} additional fields (including OHDSI if present)")
                 
                 formatted_lines.append(line)
 
             return "\n".join(formatted_lines)
 
         except json.JSONDecodeError:
-            logger.warning("Extractor agent failed to decode JSON from context.")
+            logger.warning("[ConceptSetExtractorAgent] Failed to decode JSON from context")
             return {"error": "Failed to decode JSON"}  # Return dict for test compatibility
         except Exception as e:
-            logger.exception("An unexpected error occurred in the extractor agent.")
+            logger.exception("[ConceptSetExtractorAgent] An unexpected error occurred")
             return f"An error occurred while extracting the concept set: {e}"

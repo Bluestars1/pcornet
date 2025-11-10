@@ -70,49 +70,68 @@ class Search:
         semantic_config: Optional[str] = None,
         search_fields: Optional[List[str]] = None,
         vector_field: Optional[str] = None,
+        use_index_config: bool = True,
     ) -> None:
         """
         Initializes the Search object with query parameters and configuration.
 
         Args:
-            index (str): The name of the target search index.
+            index (str): The name or registry key of the target search index.
+                If use_index_config=True, attempts to load from registry first.
             query (str): The search query string.
             top (int): The maximum number of results to retrieve. Defaults to 20.
             embedding (List[float], optional): A pre-computed embedding vector
                 for the query. If None, one will be generated.
             semantic_config (str, optional): The name of the semantic
-                configuration to apply.
+                configuration to apply. Overrides index config if provided.
             search_fields (List[str], optional): A list of field names to use
-                for keyword search. Overrides environment variable.
+                for keyword search. Overrides index config if provided.
             vector_field (str, optional): The name of the vector field in the
-                index. Overrides environment variable.
+                index. Overrides index config if provided.
+            use_index_config (bool): If True, attempts to load configuration from
+                the index registry. If False or key not found, uses direct index name.
+                Defaults to True for new code, backward compatible.
         """
-        self.index = index
         self.query = query
         self.top = int(top)
         self._embedding = embedding
-        self.semantic_config = semantic_config
 
         # Load Azure Cognitive Search config from configuration system
         config = get_config()
         self.search_endpoint = config.azure_ai_search_endpoint
         self.search_api_key = config.azure_ai_search_api_key
 
+        # Try to load from index registry first if enabled
+        index_config_loaded = False
+        if use_index_config and index in config.indices:
+            index_config = config.get_index_config(index)
+            self.index = index_config.name
+            self.vector_field = vector_field or index_config.vector_field
+            self.search_fields = search_fields or index_config.search_fields
+            self.semantic_config = semantic_config or index_config.semantic_config
+            index_config_loaded = True
+            logger.info(f"Using index config for '{index}': {index_config.name}")
+        else:
+            # Fallback to direct index name (backward compatible)
+            self.index = index
+            self.vector_field = vector_field or os.getenv("AZURE_SEARCH_VECTOR_FIELD", "content_vector")
+            
+            # Optionally override search fields passed directly or from env
+            env_search_fields = os.getenv("AZURE_SEARCH_SEARCH_FIELDS")
+            if search_fields:
+                self.search_fields = search_fields
+            elif env_search_fields:
+                self.search_fields = [f.strip() for f in env_search_fields.split(",") if f.strip()]
+            else:
+                self.search_fields = None
+            
+            self.semantic_config = semantic_config
+
         # Log the loaded values for debugging
         logger.info(f"Loaded Azure AI Search Endpoint: {self.search_endpoint}")
         logger.info(f"Loaded Azure AI Search API Key: {'[REDACTED]' if self.search_api_key else 'None'}")
 
         self.search_api_version = os.getenv("AZURE_SEARCH_API_VERSION", "2023-07-01-Preview")
-        self.vector_field = vector_field or os.getenv("AZURE_SEARCH_VECTOR_FIELD", "vector")
-
-        # Optionally override search fields passed directly or from env
-        env_search_fields = os.getenv("AZURE_SEARCH_SEARCH_FIELDS")
-        if search_fields:
-            self.search_fields = search_fields
-        elif env_search_fields:
-            self.search_fields = [f.strip() for f in env_search_fields.split(",") if f.strip()]
-        else:
-            self.search_fields = None
 
         # OpenAI embedding deployment (optional) - will use Azure OpenAI config if set
         self.embedding_deployment = config.azure_openai_embedding_deployment

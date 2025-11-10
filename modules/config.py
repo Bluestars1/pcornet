@@ -27,6 +27,44 @@ except ImportError:
 # Configure basic logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+
+class IndexConfig:
+    """
+    Configuration for a single Azure Search index.
+    
+    This class encapsulates all the metadata needed to interact with a specific
+    Azure Search index, including its schema-specific fields and search configuration.
+    """
+    
+    def __init__(
+        self,
+        name: str,
+        vector_field: str = "vector",
+        search_fields: list = None,
+        semantic_config: str = None,
+        description: str = ""
+    ):
+        """
+        Initialize an index configuration.
+        
+        Args:
+            name: The Azure Search index name
+            vector_field: Name of the vector field for similarity search
+            search_fields: List of fields to include in keyword search
+            semantic_config: Name of the semantic configuration to use
+            description: Human-readable description of the index contents
+        """
+        self.name = name
+        self.vector_field = vector_field
+        self.search_fields = search_fields or []
+        self.semantic_config = semantic_config
+        self.description = description
+    
+    def __repr__(self):
+        return (f"IndexConfig(name='{self.name}', vector_field='{self.vector_field}', "
+                f"search_fields={self.search_fields}, semantic_config='{self.semantic_config}')")
+
+
 class AppConfig:
     """
     A container for all application configuration parameters.
@@ -56,6 +94,27 @@ class AppConfig:
         self.azure_ai_search_endpoint = os.getenv("AZURE_AI_SEARCH_ENDPOINT")
         self.azure_ai_search_api_key = os.getenv("AZURE_AI_SEARCH_API_KEY")
         self.pcornet_icd_index = os.getenv("PCORNET_ICD_INDEX_NAME", "pcornet-icd-index")
+        
+        # Search configuration
+        self.search_top_k = int(os.getenv("AZURE_SEARCH_TOP_K", os.getenv("SEARCH_TOP_K", "10")))
+        
+        # Multi-Index Registry: Define all available search indices with their configurations
+        self.indices = {
+            "icd": IndexConfig(
+                name=os.getenv("PCORNET_ICD_INDEX_NAME", "pcornet-icd-index"),
+                vector_field="content_vector",  # Updated to match actual index schema
+                search_fields=["STR", "CODE"],  # REL is retrievable but not searchable
+                semantic_config=None,  # Temporarily disabled - semantic config may not exist
+                description="ICD-10 diagnosis codes with SNOMED CT relationships and OHDSI mappings"
+            ),
+            "snomed": IndexConfig(
+                name=os.getenv("PCORNET_SNOMED_INDEX_NAME", "pcornet-snomedus-index_v1"),
+                vector_field="content_vector",
+                search_fields=["STR", "CODE", "SAB"],
+                semantic_config="pcornet-semantic-config",
+                description="SNOMED CT US Edition clinical terminology concepts and relationships"
+            )
+        }
 
         # Additional properties for compatibility
         self.endpoint = self.azure_openai_endpoint
@@ -64,6 +123,58 @@ class AppConfig:
         self.chat_deployment = self.azure_openai_chat_deployment
         
         # Validation settings
+        self.agent_max_tokens = int(os.getenv("AGENT_MAX_TOKENS", "2000"))
+        self.request_timeout = int(os.getenv("REQUEST_TIMEOUT", "30"))
+        self.max_retries = int(os.getenv("MAX_RETRIES", "3"))
+        self.max_conversation_messages = int(os.getenv("MAX_CONVERSATION_MESSAGES", "20"))
+
+        # Log loaded variables for verification
+        self._log_loaded_variables()
+        
+        # General settings
+        self.agent_temperature = float(os.getenv("AGENT_TEMPERATURE", 0.7))
+
+        # Azure OpenAI settings
+        self.azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        self.azure_openai_api_key = os.getenv("AZURE_OPENAI_API_KEY")
+        self.azure_openai_api_version = os.getenv("AZURE_OPENAI_API_VERSION")
+        self.azure_openai_chat_deployment = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT")
+        self.azure_openai_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
+
+        # Azure AI Search settings
+        self.azure_ai_search_endpoint = os.getenv("AZURE_AI_SEARCH_ENDPOINT")
+        self.azure_ai_search_api_key = os.getenv("AZURE_AI_SEARCH_API_KEY")
+        self.pcornet_icd_index = os.getenv("PCORNET_ICD_INDEX_NAME", "pcornet-icd-index")
+        
+        # Search configuration
+        self.search_top_k = int(os.getenv("AZURE_SEARCH_TOP_K", os.getenv("SEARCH_TOP_K", "10")))
+        
+        # Multi-Index Registry: Define all available search indices with their configurations
+        self.indices = {
+            "icd": IndexConfig(
+                name=os.getenv("PCORNET_ICD_INDEX_NAME", "pcornet-icd-index"),
+                vector_field="content_vector",  # Updated to match actual index schema
+                search_fields=["STR", "CODE"],  # REL is retrievable but not searchable
+                semantic_config=None,  # Temporarily disabled - semantic config may not exist
+                description="ICD-10 diagnosis codes with SNOMED CT relationships and OHDSI mappings"
+            ),
+            "snomed": IndexConfig(
+                name=os.getenv("PCORNET_SNOMED_INDEX_NAME", "pcornet-snomedus-index_v1"),
+                vector_field="content_vector",
+                search_fields=["STR", "CODE", "SAB"],
+                semantic_config="pcornet-semantic-config",
+                description="SNOMED CT US Edition clinical terminology concepts and relationships"
+            )
+        }
+
+        # Additional properties for compatibility
+        self.endpoint = self.azure_openai_endpoint
+        self.api_key = self.azure_openai_api_key
+        self.api_version = self.azure_openai_api_version
+        self.chat_deployment = self.azure_openai_chat_deployment
+        
+        # Validation settings
+        self.agent_max_tokens = int(os.getenv("AGENT_MAX_TOKENS", "2000"))
         self.request_timeout = int(os.getenv("REQUEST_TIMEOUT", "30"))
         self.max_retries = int(os.getenv("MAX_RETRIES", "3"))
         self.max_conversation_messages = int(os.getenv("MAX_CONVERSATION_MESSAGES", "20"))
@@ -75,6 +186,7 @@ class AppConfig:
         """Logs the loaded configuration variables for verification."""
         logging.info("--- Configuration Variables Loaded ---")
         logging.info(f"AGENT_TEMPERATURE: {self.agent_temperature}")
+        logging.info(f"AGENT_MAX_TOKENS: {self.agent_max_tokens}")
         logging.info(f"AZURE_OPENAI_ENDPOINT: {self.azure_openai_endpoint}")
         logging.info(f"AZURE_OPENAI_API_KEY: {'*' * 8 if self.azure_openai_api_key else 'Not Set'}")
         logging.info(f"AZURE_OPENAI_API_VERSION: {self.azure_openai_api_version}")
@@ -83,6 +195,13 @@ class AppConfig:
         logging.info(f"AZURE_AI_SEARCH_ENDPOINT: {self.azure_ai_search_endpoint}")
         logging.info(f"AZURE_AI_SEARCH_API_KEY: {'*' * 8 if self.azure_ai_search_api_key else 'Not Set'}")
         logging.info(f"PCORNET_ICD_INDEX_NAME: {self.pcornet_icd_index}")
+        logging.info(f"AZURE_SEARCH_TOP_K: {self.search_top_k}")
+        logging.info("--- Registered Search Indices ---")
+        for key, idx_config in self.indices.items():
+            logging.info(f"  [{key}] {idx_config.name}")
+            logging.info(f"    - Vector field: {idx_config.vector_field}")
+            logging.info(f"    - Search fields: {', '.join(idx_config.search_fields)}")
+            logging.info(f"    - Description: {idx_config.description}")
         logging.info("------------------------------------")
 
     def get_azure_openai_kwargs(self) -> dict:
@@ -95,6 +214,27 @@ class AppConfig:
             "api_version": self.azure_openai_api_version,
             "azure_deployment": self.azure_openai_chat_deployment
         }
+    
+    def get_index_config(self, index_key: str) -> IndexConfig:
+        """
+        Retrieve the configuration for a specific index by its key.
+        
+        Args:
+            index_key: The registry key for the index (e.g., "icd", "snomed")
+            
+        Returns:
+            IndexConfig: The configuration object for the specified index
+            
+        Raises:
+            ValueError: If the index_key is not found in the registry
+        """
+        if index_key not in self.indices:
+            available = ", ".join(self.indices.keys())
+            raise ValueError(
+                f"Unknown index key: '{index_key}'. "
+                f"Available indices: {available}"
+            )
+        return self.indices[index_key]
 
     def health_check(self):
         """
@@ -187,6 +327,7 @@ class AzureOpenAIConfig:
         
         # Default values for compatibility
         self.agent_temperature = float(os.getenv("AGENT_TEMPERATURE", "1.0"))
+        self.agent_max_tokens = int(os.getenv("AGENT_MAX_TOKENS", "2000"))
         self.request_timeout = int(os.getenv("REQUEST_TIMEOUT", "30"))
         self.max_retries = int(os.getenv("MAX_RETRIES", "3"))
         self.max_conversation_messages = int(os.getenv("MAX_CONVERSATION_MESSAGES", "20"))
@@ -222,7 +363,7 @@ def get_config():
         config = AppConfig()
     return config
 
-def create_chat_llm(max_tokens: int = 1000, temperature: float = None):
+def create_chat_llm(max_tokens: int = None, temperature: float = None):
     """
     Creates and returns a standardized AzureChatOpenAI instance.
     
@@ -230,7 +371,7 @@ def create_chat_llm(max_tokens: int = 1000, temperature: float = None):
     ensuring consistent configuration across the application.
     
     Args:
-        max_tokens: Maximum tokens for the response (default: 1000)
+        max_tokens: Maximum tokens for the response (default: from AGENT_MAX_TOKENS env var or 2000)
         temperature: Temperature for response generation (default: from config)
     
     Returns:
@@ -240,11 +381,12 @@ def create_chat_llm(max_tokens: int = 1000, temperature: float = None):
     
     cfg = get_config()
     temp = temperature if temperature is not None else cfg.agent_temperature
+    tokens = max_tokens if max_tokens is not None else cfg.agent_max_tokens
     
     return AzureChatOpenAI(
         deployment_name=os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT"),
         temperature=temp,
-        max_tokens=max_tokens,
+        max_tokens=tokens,
         azure_endpoint=cfg.azure_openai_endpoint,
         api_version=cfg.azure_openai_api_version,
         openai_api_key=cfg.azure_openai_api_key
@@ -269,6 +411,49 @@ def create_openai_client():
         azure_endpoint=cfg.azure_openai_endpoint,
         api_key=cfg.azure_openai_api_key,
     )
+
+def invoke_llm_with_retry(llm_callable, max_retries=3, initial_delay=2):
+    """
+    Wrapper to invoke any LLM with automatic retry on rate limit errors.
+    
+    Args:
+        llm_callable: A callable that invokes the LLM (e.g., lambda: llm.invoke(messages))
+        max_retries: Maximum number of retry attempts (default: 3)
+        initial_delay: Initial delay in seconds before first retry (default: 2)
+    
+    Returns:
+        The result from the LLM invocation
+    
+    Raises:
+        RateLimitError: If rate limit is still exceeded after all retries
+        Exception: For other errors during invocation
+    
+    Example:
+        result = invoke_llm_with_retry(lambda: llm.invoke([msg1, msg2]))
+    """
+    import time
+    from openai import RateLimitError
+    
+    logger = logging.getLogger(__name__)
+    
+    for attempt in range(max_retries):
+        try:
+            return llm_callable()
+            
+        except RateLimitError as e:
+            if attempt < max_retries - 1:
+                wait_time = initial_delay * (2 ** attempt)  # Exponential backoff: 2s, 4s, 8s
+                logger.warning(f"⚠️ Rate limit hit, retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                time.sleep(wait_time)
+            else:
+                logger.error(f"❌ Rate limit exceeded after {max_retries} attempts")
+                raise
+        
+        except Exception as e:
+            logger.error(f"❌ LLM invocation error: {e}")
+            raise
+    
+    raise Exception("Failed to invoke LLM after all retry attempts")
 
 # Prompt Templates
 CONCEPT_SET_CLASSIFICATION_PROMPT = """

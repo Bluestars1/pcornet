@@ -1536,5 +1536,244 @@
     "created_at": "2025-10-24T17:47:11.501307",
     "access_count": 0,
     "last_accessed": null
+  },
+  "fact_20251031_174157_362155": {
+    "fact_type": "context",
+    "content": "User is attempting to search SNOMED data.",
+    "confidence": "high",
+    "entities": [
+      "SNOMED"
+    ],
+    "id": "fact_20251031_174157_362155",
+    "created_at": "2025-10-31T17:41:57.362170",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251031_174157_363072": {
+    "fact_type": "domain_knowledge",
+    "content": "Search operations on SNOMED data may fail due to invalid semantic configuration parameters.",
+    "confidence": "high",
+    "entities": [
+      "SNOMED",
+      "semantic configuration"
+    ],
+    "id": "fact_20251031_174157_363072",
+    "created_at": "2025-10-31T17:41:57.363078",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251101_160221_677776": {
+    "fact_type": "context",
+    "content": "The storage of ICD-10 codes has been cleared and no codes are currently available in the dataset.",
+    "confidence": "high",
+    "entities": [
+      "ICD-10"
+    ],
+    "id": "fact_20251101_160221_677776",
+    "created_at": "2025-11-01T16:02:21.677837",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_142423_811068": {
+    "fact_type": "context",
+    "content": "The assistant previously provided a comprehensive chronic pain concept set including ICD-10 and SNOMED codes.",
+    "confidence": "high",
+    "entities": [
+      "chronic pain",
+      "ICD-10",
+      "SNOMED"
+    ],
+    "id": "fact_20251107_142423_811068",
+    "created_at": "2025-11-07T14:24:23.811107",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_142423_815369": {
+    "fact_type": "context",
+    "content": "The current session is limited to only three ICD-10 codes and their associated data.",
+    "confidence": "high",
+    "entities": [
+      "ICD-10"
+    ],
+    "id": "fact_20251107_142423_815369",
+    "created_at": "2025-11-07T14:24:23.815415",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_142423_819271": {
+    "fact_type": "user_preference",
+    "content": "User expects code lists and tables to be generated strictly from the provided dataset.",
+    "confidence": "high",
+    "entities": [
+      "ICD-10"
+    ],
+    "id": "fact_20251107_142423_819271",
+    "created_at": "2025-11-07T14:24:23.819296",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_142423_822502": {
+    "fact_type": "domain_knowledge",
+    "content": "Concept sets for medical coding can include both ICD-10 and SNOMED codes.",
+    "confidence": "high",
+    "entities": [
+      "ICD-10",
+      "SNOMED",
+      "concept set"
+    ],
+    "id": "fact_20251107_142423_822502",
+    "created_at": "2025-11-07T14:24:23.822521",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_154124_359280": {
+    "fact_type": "user_preference",
+    "content": "User requested removal of ICD code R52 from the session data.",
+    "confidence": "high",
+    "entities": [
+      "R52"
+    ],
+    "id": "fact_20251107_154124_359280",
+    "created_at": "2025-11-07T15:41:24.359313",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_154124_364890": {
+    "fact_type": "context",
+    "content": "The session contains a list of 50 ICD codes related to removal, adjustment, displacement, and contact injuries.",
+    "confidence": "high",
+    "entities": [
+      "ICD codes",
+      "removal",
+      "adjustment",
+      "displacement",
+      "contact injuries"
+    ],
+    "id": "fact_20251107_154124_364890",
+    "created_at": "2025-11-07T15:41:24.364938",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_154124_368639": {
+    "fact_type": "domain_knowledge",
+    "content": "R52 is the ICD-10 code for pain, unspecified.",
+    "confidence": "high",
+    "entities": [
+      "R52",
+      "pain, unspecified"
+    ],
+    "id": "fact_20251107_154124_368639",
+    "created_at": "2025-11-07T15:41:24.368695",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_154124_372610": {
+    "fact_type": "domain_knowledge",
+    "content": "ICD codes are used to classify medical diagnoses and procedures.",
+    "confidence": "high",
+    "entities": [
+      "ICD codes",
+      "medical coding"
+    ],
+    "id": "fact_20251107_154124_372610",
+    "created_at": "2025-11-07T15:41:24.372644",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251107_154124_375591": {
+    "fact_type": "context",
+    "content": "The assistant did not find R52 in the search results when attempting removal.",
+    "confidence": "high",
+    "entities": [
+      "R52"
+    ],
+    "id": "fact_20251107_154124_375591",
+    "created_at": "2025-11-07T15:41:24.375627",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251109_223210_466147": {
+    "fact_type": "user_preference",
+    "content": "User prefers tabular formatting for medical coding information.",
+    "confidence": "high",
+    "entities": [
+      "ICD-10",
+      "SNOMED CT",
+      "chronic pain"
+    ],
+    "id": "fact_20251109_223210_466147",
+    "created_at": "2025-11-09T22:32:10.466182",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251109_223210_471300": {
+    "fact_type": "domain_knowledge",
+    "content": "Chronic pain syndrome is coded as G89.4 in ICD-10 and 373621006 in SNOMED CT.",
+    "confidence": "high",
+    "entities": [
+      "G89.4",
+      "373621006",
+      "chronic pain syndrome"
+    ],
+    "id": "fact_20251109_223210_471300",
+    "created_at": "2025-11-09T22:32:10.471336",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251109_223210_475552": {
+    "fact_type": "domain_knowledge",
+    "content": "Chronic pain, not elsewhere classified is coded as G89.2 in ICD-10 and 82423001 in SNOMED CT.",
+    "confidence": "high",
+    "entities": [
+      "G89.2",
+      "82423001",
+      "chronic pain"
+    ],
+    "id": "fact_20251109_223210_475552",
+    "created_at": "2025-11-09T22:32:10.475585",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251109_223210_479752": {
+    "fact_type": "domain_knowledge",
+    "content": "Other chronic pain is coded as G89.29 in ICD-10 and 82423001 in SNOMED CT.",
+    "confidence": "high",
+    "entities": [
+      "G89.29",
+      "82423001",
+      "chronic pain"
+    ],
+    "id": "fact_20251109_223210_479752",
+    "created_at": "2025-11-09T22:32:10.479776",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251109_223210_483920": {
+    "fact_type": "domain_knowledge",
+    "content": "Chronic pain due to trauma is coded as G89.21 in ICD-10 and 431481001 in SNOMED CT.",
+    "confidence": "high",
+    "entities": [
+      "G89.21",
+      "431481001",
+      "chronic pain due to trauma"
+    ],
+    "id": "fact_20251109_223210_483920",
+    "created_at": "2025-11-09T22:32:10.483947",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251109_223210_487259": {
+    "fact_type": "domain_knowledge",
+    "content": "Central pain syndrome is coded as G89.0 in ICD-10 and 426566004 in SNOMED CT.",
+    "confidence": "high",
+    "entities": [
+      "G89.0",
+      "426566004",
+      "central pain syndrome"
+    ],
+    "id": "fact_20251109_223210_487259",
+    "created_at": "2025-11-09T22:32:10.487281",
+    "access_count": 0,
+    "last_accessed": null
   }
 }

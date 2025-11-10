@@ -51,7 +51,7 @@ sudo ./setup_https.sh domain.com email@example.com
 - HTTP to HTTPS redirect
 - Security headers configured
 
-**Guide:** [docs/HTTPS_SETUP_GUIDE.md](docs/HTTPS_SETUP_GUIDE.md)
+**Guide:** [HTTPS_SETUP_GUIDE.md](HTTPS_SETUP_GUIDE.md)
 
 ### 🔄 Smart Patch/Upgrade System
 Update without losing config or data:
@@ -66,7 +66,7 @@ sudo ./install.sh --patch
 - HTTPS configuration
 - All custom settings
 
-**Guide:** [docs/UPGRADE_AND_PATCHING.md](docs/UPGRADE_AND_PATCHING.md)
+**Guide:** [UPGRADE_AND_PATCHING.md](UPGRADE_AND_PATCHING.md)
 
 ---
 
@@ -115,11 +115,11 @@ sudo certbot renew --dry-run         # Test renewal
 
 ## Documentation
 
-- **[docs/CONFIGURATION_CHECKLIST.md](docs/CONFIGURATION_CHECKLIST.md)** - What to configure
-- **[docs/UBUNTU_DEPLOYMENT.md](docs/UBUNTU_DEPLOYMENT.md)** - Full deployment guide
-- **[docs/HTTPS_SETUP_GUIDE.md](docs/HTTPS_SETUP_GUIDE.md)** - HTTPS setup details
-- **[docs/UPGRADE_AND_PATCHING.md](docs/UPGRADE_AND_PATCHING.md)** - Update procedures
-- **[docs/ENHANCEMENTS_SUMMARY.md](docs/ENHANCEMENTS_SUMMARY.md)** - Feature summary
+- **[CONFIGURATION_CHECKLIST.md](CONFIGURATION_CHECKLIST.md)** - What to configure
+- **[UBUNTU_DEPLOYMENT.md](UBUNTU_DEPLOYMENT.md)** - Full deployment guide
+- **[HTTPS_SETUP_GUIDE.md](HTTPS_SETUP_GUIDE.md)** - HTTPS setup details
+- **[UPGRADE_AND_PATCHING.md](UPGRADE_AND_PATCHING.md)** - Update procedures
+- **[ENHANCEMENTS_SUMMARY.md](ENHANCEMENTS_SUMMARY.md)** - Feature summary
 
 ---
 

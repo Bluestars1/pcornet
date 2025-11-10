@@ -1,27 +1,36 @@
-# LangChain & Agent Framework
-langchain                 # Framework for building LLM-powered applications
-langchain-openai          # Azure OpenAI and OpenAI model integration
-langgraph                 # Stateful, multi-agent workflow framework
+# PCORnet Dependencies
+# 
+# This file contains core dependencies with pinned versions for consistency.
+# For a complete dependency lock including all transitive dependencies,
+# use: pip install -r requirements-lock.txt (recommended for production)
+#
+# To update this lock file: pip freeze > requirements-lock.txt
+#
 
-# Azure & OpenAI SDK
-openai                    # Official OpenAI Python client (for Azure OpenAI embeddings and chat)
-azure-search-documents    # Azure AI Search SDK (vector and hybrid search)
+# LangChain & Agent Framework (pinned for API stability)
+langchain==0.2.16         # Framework for building LLM-powered applications
+langchain-openai==0.1.25  # Azure OpenAI and OpenAI model integration
+langgraph==0.2.28         # Stateful, multi-agent workflow framework
 
-# Memory & Embeddings
+# Azure & OpenAI SDK (pinned for API stability)
+openai==1.109.1           # Official OpenAI Python client (for Azure OpenAI embeddings and chat)
+azure-search-documents==11.6.0  # Azure AI Search SDK (vector and hybrid search)
+
+# Memory & Embeddings (minimum versions for compatibility)
 chromadb>=0.4.18          # Vector database for semantic search and memory storage
 sentence-transformers>=2.2.2  # Generate embeddings for text similarity and semantic search
 tiktoken>=0.5.1           # OpenAI's tokenizer for counting tokens and text processing
 
-# Configuration & Validation
-python-dotenv             # Load environment variables from .env files
-pydantic                  # Data validation and settings management using type annotations
+# Configuration & Validation (pinned for consistency)
+python-dotenv==1.0.1      # Load environment variables from .env files
+pydantic==2.9.2           # Data validation and settings management using type annotations
 typing-extensions         # Backport of Python typing features for older versions
 
-# User Interface
-streamlit                 # Framework for building interactive web applications
-pyperclip                 # Cross-platform clipboard access for copying/pasting
+# User Interface (pinned for CSS/UI consistency)
+streamlit==1.28.0         # Framework for building interactive web applications (CRITICAL: pinned for identical CSS)
+pyperclip==1.8.2          # Cross-platform clipboard access for copying/pasting
 
-# Testing
-pytest                    # Testing framework for Python applications
-pytest-cov                # Code coverage reporting for tests
-pytest-asyncio            # Support for testing async code with pytest
+# Testing (pinned for consistent test behavior)
+pytest==8.0.0             # Testing framework for Python applications
+pytest-cov==4.1.0         # Code coverage reporting for tests
+pytest-asyncio==0.23.5    # Support for testing async code with pytest

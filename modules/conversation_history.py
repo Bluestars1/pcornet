@@ -13,6 +13,7 @@ from datetime import datetime
 import logging
 import json
 import os
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -224,6 +225,66 @@ class ConversationHistory:
         
         return "\n".join(context_lines)
     
+    def get_last_n_responses(self, n: int = 3) -> str:
+        """
+        Gets the last N assistant responses to use as context for the next request.
+        
+        This provides the AI with recent conversation context to maintain continuity
+        and understand what has been discussed.
+
+        Args:
+            n (int): The number of recent assistant responses to retrieve (default: 3).
+
+        Returns:
+            str: A formatted string containing the last N assistant responses,
+                 or empty string if no responses exist.
+        """
+        # Filter for assistant messages only
+        assistant_messages = [m for m in self.messages if m.role == "assistant"]
+        
+        if not assistant_messages:
+            return ""
+        
+        # Get the last N assistant messages
+        recent_responses = assistant_messages[-n:] if len(assistant_messages) >= n else assistant_messages
+        
+        if not recent_responses:
+            return ""
+        
+        # Format as context
+        context_lines = ["Previous responses for context:"]
+        
+        for i, message in enumerate(recent_responses, 1):
+            timestamp_str = message.timestamp.strftime("%H:%M")
+            agent_info = f" [{message.agent_type}]" if message.agent_type else ""
+            
+            # Process content for proper formatting
+            content = message.content
+            
+            # Normalize line breaks (handle both \r\n and \n)
+            content = content.replace('\r\n', '\n').replace('\r', '\n')
+            
+            # Collapse multiple consecutive line breaks into max 2
+            content = re.sub(r'\n{3,}', '\n\n', content)
+            
+            # Truncate very long responses to avoid token bloat
+            if len(content) > 500:
+                # Try to truncate at a line break if possible
+                truncate_pos = content.rfind('\n', 0, 500)
+                if truncate_pos > 300:  # Only use line break if it's reasonably far in
+                    content = content[:truncate_pos] + f"\n... [truncated, {len(message.content)} chars total]"
+                else:
+                    content = content[:500] + f"... [truncated, {len(message.content)} chars total]"
+            
+            # Add response header
+            context_lines.append(f"\nResponse {i}{agent_info} ({timestamp_str}):")
+            
+            # Indent the content for better visual separation
+            indented_content = '\n'.join('  ' + line if line.strip() else '' for line in content.split('\n'))
+            context_lines.append(indented_content)
+        
+        return "\n".join(context_lines)
+    
     def clear_history(self) -> None:
         """
         Removes all messages from the in-memory history.
@@ -294,6 +355,12 @@ class ConversationHistory:
             bool: True if the save operation was successful, False otherwise.
         """
         try:
+            # CRITICAL: Enforce rolling window BEFORE saving to prevent file bloat
+            if len(self.messages) > self.max_messages:
+                original_count = len(self.messages)
+                self.messages = self.messages[-self.max_messages:]
+                logger.warning(f"Trimmed conversation history before save: {original_count} → {len(self.messages)} messages")
+            
             # Convert messages to serializable format
             serializable_messages = []
             for message in self.messages:
@@ -413,6 +480,12 @@ class ConversationHistory:
             
             # Construct full path
             custom_file = os.path.join(saved_dir, filename)
+            
+            # CRITICAL: Enforce rolling window BEFORE saving to prevent file bloat
+            if len(self.messages) > self.max_messages:
+                original_count = len(self.messages)
+                self.messages = self.messages[-self.max_messages:]
+                logger.warning(f"Trimmed conversation history before custom save: {original_count} → {len(self.messages)} messages")
             
             # Convert messages to serializable format
             serializable_messages = []
