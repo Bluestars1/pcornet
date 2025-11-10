@@ -1691,5 +1691,89 @@
     "created_at": "2025-11-07T15:41:24.375627",
     "access_count": 0,
     "last_accessed": null
+  },
+  "fact_20251109_223210_466147": {
+    "fact_type": "user_preference",
+    "content": "User prefers tabular formatting for medical coding information.",
+    "confidence": "high",
+    "entities": [
+      "ICD-10",
+      "SNOMED CT",
+      "chronic pain"
+    ],
+    "id": "fact_20251109_223210_466147",
+    "created_at": "2025-11-09T22:32:10.466182",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251109_223210_471300": {
+    "fact_type": "domain_knowledge",
+    "content": "Chronic pain syndrome is coded as G89.4 in ICD-10 and 373621006 in SNOMED CT.",
+    "confidence": "high",
+    "entities": [
+      "G89.4",
+      "373621006",
+      "chronic pain syndrome"
+    ],
+    "id": "fact_20251109_223210_471300",
+    "created_at": "2025-11-09T22:32:10.471336",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251109_223210_475552": {
+    "fact_type": "domain_knowledge",
+    "content": "Chronic pain, not elsewhere classified is coded as G89.2 in ICD-10 and 82423001 in SNOMED CT.",
+    "confidence": "high",
+    "entities": [
+      "G89.2",
+      "82423001",
+      "chronic pain"
+    ],
+    "id": "fact_20251109_223210_475552",
+    "created_at": "2025-11-09T22:32:10.475585",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251109_223210_479752": {
+    "fact_type": "domain_knowledge",
+    "content": "Other chronic pain is coded as G89.29 in ICD-10 and 82423001 in SNOMED CT.",
+    "confidence": "high",
+    "entities": [
+      "G89.29",
+      "82423001",
+      "chronic pain"
+    ],
+    "id": "fact_20251109_223210_479752",
+    "created_at": "2025-11-09T22:32:10.479776",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251109_223210_483920": {
+    "fact_type": "domain_knowledge",
+    "content": "Chronic pain due to trauma is coded as G89.21 in ICD-10 and 431481001 in SNOMED CT.",
+    "confidence": "high",
+    "entities": [
+      "G89.21",
+      "431481001",
+      "chronic pain due to trauma"
+    ],
+    "id": "fact_20251109_223210_483920",
+    "created_at": "2025-11-09T22:32:10.483947",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fact_20251109_223210_487259": {
+    "fact_type": "domain_knowledge",
+    "content": "Central pain syndrome is coded as G89.0 in ICD-10 and 426566004 in SNOMED CT.",
+    "confidence": "high",
+    "entities": [
+      "G89.0",
+      "426566004",
+      "central pain syndrome"
+    ],
+    "id": "fact_20251109_223210_487259",
+    "created_at": "2025-11-09T22:32:10.487281",
+    "access_count": 0,
+    "last_accessed": null
   }
 }

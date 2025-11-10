@@ -129,21 +129,27 @@ class SnomedAgent:
                 
                 # Convert to DataItems for session storage
                 context = interactive_session.get_context(session_id)
-                context.clear_data()  # Clear previous data
-                
-                for item in raw_results:
-                    doc = item.get("document", {})
-                    code = doc.get("CODE", "N/A")
-                    concept_name = doc.get("STR", "N/A")
+                if context:
+                    # Clear previous data by clearing the dictionary
+                    context.current_data.clear()
                     
-                    data_item = DataItem(
-                        key=code,
-                        value=concept_name,
-                        metadata={"full_document": doc}
-                    )
-                    context.add_data(data_item)
-                
-                logger.info(f"Stored {len(raw_results)} SNOMED concepts in session {session_id}")
+                    for item in raw_results:
+                        doc = item.get("document", {})
+                        code = doc.get("CODE", "N/A")
+                        concept_name = doc.get("STR", "N/A")
+                        
+                        data_item = DataItem(
+                            item_type="snomed",
+                            key=code,
+                            value=concept_name,
+                            metadata={"full_document": doc}
+                        )
+                        # Add directly to the current_data dictionary
+                        context.current_data[code] = data_item
+                    
+                    logger.info(f"Stored {len(raw_results)} SNOMED concepts in session {session_id}")
+                else:
+                    logger.warning(f"No context found for session {session_id}")
             
             return result
             

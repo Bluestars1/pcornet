@@ -224,6 +224,49 @@ class ConversationHistory:
         
         return "\n".join(context_lines)
     
+    def get_last_n_responses(self, n: int = 3) -> str:
+        """
+        Gets the last N assistant responses to use as context for the next request.
+        
+        This provides the AI with recent conversation context to maintain continuity
+        and understand what has been discussed.
+
+        Args:
+            n (int): The number of recent assistant responses to retrieve (default: 3).
+
+        Returns:
+            str: A formatted string containing the last N assistant responses,
+                 or empty string if no responses exist.
+        """
+        # Filter for assistant messages only
+        assistant_messages = [m for m in self.messages if m.role == "assistant"]
+        
+        if not assistant_messages:
+            return ""
+        
+        # Get the last N assistant messages
+        recent_responses = assistant_messages[-n:] if len(assistant_messages) >= n else assistant_messages
+        
+        if not recent_responses:
+            return ""
+        
+        # Format as context
+        context_lines = ["Previous responses for context:"]
+        
+        for i, message in enumerate(recent_responses, 1):
+            timestamp_str = message.timestamp.strftime("%H:%M")
+            agent_info = f" [{message.agent_type}]" if message.agent_type else ""
+            
+            # Truncate very long responses to avoid token bloat
+            content = message.content
+            if len(content) > 500:
+                content = content[:500] + f"... [truncated, {len(message.content)} chars total]"
+            
+            context_lines.append(f"\nResponse {i}{agent_info} ({timestamp_str}):")
+            context_lines.append(content)
+        
+        return "\n".join(context_lines)
+    
     def clear_history(self) -> None:
         """
         Removes all messages from the in-memory history.

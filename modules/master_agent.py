@@ -194,6 +194,11 @@ class MasterAgent:
         
         # Get comprehensive context from memory system (lazy-loaded)
         working_memory = self.conversation_history.get_recent_context(num_messages=10)
+        
+        # Get last N responses for continuity context (configurable via CONTEXT_RESPONSES_COUNT)
+        context_count = int(os.getenv("CONTEXT_RESPONSES_COUNT", "3"))
+        last_responses_context = self.conversation_history.get_last_n_responses(n=context_count)
+        
         session_context = ""
         
         # Check if there's an active session with previous ICD data
@@ -201,10 +206,16 @@ class MasterAgent:
         if has_session_data:
             session_context = self._get_session_context_string(session_id, query) or ""
         
+        # Combine working memory with last responses for richer context
+        enhanced_working_memory = working_memory
+        if last_responses_context:
+            enhanced_working_memory = f"{working_memory}\n\n{last_responses_context}"
+            logger.info(f"📋 Added last 3 responses to context ({len(last_responses_context)} chars)")
+        
         # Get context from memory manager (model loads on first use only)
         memory_context = memory_manager.get_relevant_context(
             current_query=query,
-            working_memory=working_memory,
+            working_memory=enhanced_working_memory,
             session_context=session_context,
             max_tokens=2000,
             include_episodic=True,
