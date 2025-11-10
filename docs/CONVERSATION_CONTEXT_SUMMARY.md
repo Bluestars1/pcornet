@@ -7,13 +7,16 @@ Added automatic storage and retrieval of the **last 3 assistant responses** to p
 ## Changes Made
 
 ### 1. New Method in `modules/conversation_history.py`
-**Lines: 227-268**
+**Lines: 227-286**
 
 ```python
 def get_last_n_responses(self, n: int = 3) -> str:
     """Gets the last N assistant responses to use as context for the next request."""
     # Filters assistant messages only
-    # Truncates long responses (>500 chars) to avoid token bloat
+    # Normalizes line breaks (Windows/Unix compatibility)
+    # Collapses excessive blank lines
+    # Truncates long responses (>500 chars) at line boundaries
+    # Indents content for readability
     # Formats with timestamps and agent labels
 ```
 

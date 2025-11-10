@@ -41,10 +41,10 @@ def test_last_responses():
         agent_type="chat"
     )
     
-    # Exchange 3
+    # Exchange 3 - Test with line breaks and formatting
     history.add_user_message("Create a diabetes concept set")
     history.add_assistant_message(
-        "Here is a diabetes concept set with ICD-10 codes: E10 (Type 1), E11 (Type 2), E13 (Other specified)...",
+        "Here is a diabetes concept set with ICD-10 codes:\n\nE10 (Type 1)\nE11 (Type 2)\nE13 (Other specified)\n\n\n\nThese are the main codes.",
         agent_type="concept_set"
     )
     

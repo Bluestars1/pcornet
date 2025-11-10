@@ -13,6 +13,7 @@ from datetime import datetime
 import logging
 import json
 import os
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -257,13 +258,30 @@ class ConversationHistory:
             timestamp_str = message.timestamp.strftime("%H:%M")
             agent_info = f" [{message.agent_type}]" if message.agent_type else ""
             
-            # Truncate very long responses to avoid token bloat
+            # Process content for proper formatting
             content = message.content
-            if len(content) > 500:
-                content = content[:500] + f"... [truncated, {len(message.content)} chars total]"
             
+            # Normalize line breaks (handle both \r\n and \n)
+            content = content.replace('\r\n', '\n').replace('\r', '\n')
+            
+            # Collapse multiple consecutive line breaks into max 2
+            content = re.sub(r'\n{3,}', '\n\n', content)
+            
+            # Truncate very long responses to avoid token bloat
+            if len(content) > 500:
+                # Try to truncate at a line break if possible
+                truncate_pos = content.rfind('\n', 0, 500)
+                if truncate_pos > 300:  # Only use line break if it's reasonably far in
+                    content = content[:truncate_pos] + f"\n... [truncated, {len(message.content)} chars total]"
+                else:
+                    content = content[:500] + f"... [truncated, {len(message.content)} chars total]"
+            
+            # Add response header
             context_lines.append(f"\nResponse {i}{agent_info} ({timestamp_str}):")
-            context_lines.append(content)
+            
+            # Indent the content for better visual separation
+            indented_content = '\n'.join('  ' + line if line.strip() else '' for line in content.split('\n'))
+            context_lines.append(indented_content)
         
         return "\n".join(context_lines)
     
